@@ -24,8 +24,9 @@
   "dependencies": {
     "basetype": "^0.1.4",
     "bolzano": "^0.1.0",
+    "doming": "0.0.3",
     "idgener": "0.0.2",
-    "kabanery": "^0.1.0"
+    "kabanery": "^0.1.2"
   },
   "devDependencies": {
     "webpack": "^1.14.0"

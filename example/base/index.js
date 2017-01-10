@@ -6,14 +6,21 @@ let treeSelect = TreeSelect({
     data: {
         a: 10,
         b: 20,
+        a1: 11,
+        a2: 12,
+        a3: 13,
+        a4: 14,
+        a5: 15,
         c: {
             d: 3,
             e: {
-                f: 10
+                f: 10,
+                g: {
+                    h: '183875fhjfjdhgfdjhg'
+                }
             }
         }
-    },
-    selectedPath: 'c.e.f'
+    }
 });
 
 document.body.appendChild(treeSelect);
