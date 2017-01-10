@@ -39,8 +39,8 @@ let renderMap = view(({
     if (hidden) return null;
 
     let expandedItem = (item) => {
-        let left = 12,
-            top = -26,
+        let left = 0,
+            top = 0,
             windowWidth = getWindowWidth(),
             windowHeight = getWindowHeight();
 
