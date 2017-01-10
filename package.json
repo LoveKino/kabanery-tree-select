@@ -24,6 +24,7 @@
   "dependencies": {
     "basetype": "^0.1.4",
     "bolzano": "^0.1.0",
+    "idgener": "0.0.2",
     "kabanery": "^0.1.0"
   },
   "devDependencies": {

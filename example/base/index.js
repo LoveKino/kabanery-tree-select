@@ -7,10 +7,13 @@ let treeSelect = TreeSelect({
         a: 10,
         b: 20,
         c: {
-            d: 3
+            d: 3,
+            e: {
+                f: 10
+            }
         }
     },
-    selectedPath: 'c.d'
+    selectedPath: 'c.e.f'
 });
 
 document.body.appendChild(treeSelect);
