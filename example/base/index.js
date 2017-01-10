@@ -5,7 +5,12 @@ let TreeSelect = require('../../index.js');
 let treeSelect = TreeSelect({
     data: {
         a: 10,
-        b: 20,
+        b: {
+            b1: 5,
+            b2: {
+                b3: 10
+            }
+        },
         a1: 11,
         a2: 12,
         a3: 13,
