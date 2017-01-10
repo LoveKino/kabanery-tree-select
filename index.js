@@ -5,7 +5,7 @@ let {
 } = require('kabanery');
 
 let {
-    map
+    map, compact
 } = require('bolzano');
 
 let {
@@ -28,17 +28,18 @@ let renderMap = view(({
     hidden,
     onselected,
     targetPosition,
-    maxShowItemNum = 10, selectedPath = '',
+    maxShowItemNum = 10, selectedPath = '', parentPath = '',
 }, {
     update
 }) => {
+
     let selectedName = selectedPath.split('.')[0];
     let restPath = selectedPath.substring(selectedName.length + 1);
     let width = 164,
         height = 16;
     if (hidden) return null;
 
-    let expandedItem = (item) => {
+    let expandedItem = (item, name) => {
         let left = 0,
             top = 0,
             windowWidth = getWindowWidth(),
@@ -66,7 +67,8 @@ let renderMap = view(({
         }, renderMap({
             data: item,
             selectedPath: restPath,
-            onselected
+            onselected,
+            parentPath: getPath(name, parentPath)
         }));
     };
 
@@ -95,7 +97,11 @@ let renderMap = view(({
                 color: name === selectedName ? 'white' : 'black'
             },
 
-            'class': SELECT_ITEM_HOVER_CLASS
+            'class': SELECT_ITEM_HOVER_CLASS,
+
+            onclick: () => {
+                update('hidden', true);
+            }
         }, [
             n('div', {
                 style: {
@@ -125,7 +131,7 @@ let renderMap = view(({
                         }
                     }, [
                         n('span', '>'),
-                        name === selectedName && expandedItem(item),
+                        name === selectedName && expandedItem(item, name),
                     ])
                 ],
                 n('div', {
@@ -145,9 +151,7 @@ let renderMap = view(({
                 },
 
                 onclick: (e) => {
-                    if (e.finished) {
-                        update('hidden', true);
-                    } else if (isObject(item)) {
+                    if (isObject(item)) {
                         e.stopPropagation();
                         // expand it
                         update([
@@ -155,9 +159,7 @@ let renderMap = view(({
                             ['targetPosition', e.target.getBoundingClientRect()]
                         ]);
                     } else {
-                        //
-                        e.finished = true;
-                        onselected && onselected(item, name, selectedPath);
+                        onselected && onselected(item, getPath(name, parentPath));
                         update('hidden', true);
                     }
                 }
@@ -166,6 +168,10 @@ let renderMap = view(({
         ]);
     }));
 });
+
+let getPath = (name, parentPath) => {
+    return compact([parentPath, name]).join('.');
+};
 
 const SELECT_ITEM_HOVER_CLASS = 'select-item-' + idgener().replace(/\./g, '-');
 

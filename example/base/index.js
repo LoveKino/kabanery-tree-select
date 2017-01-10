@@ -20,6 +20,10 @@ let treeSelect = TreeSelect({
                 }
             }
         }
+    },
+
+    onselected: (v, path) => {
+        console.log(v, path);
     }
 });
 
