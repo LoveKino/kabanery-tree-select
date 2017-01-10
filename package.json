@@ -1,0 +1,32 @@
+{
+  "name": "kabanery-tree-select",
+  "version": "0.0.1",
+  "description": "tree select for kabanery",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LoveKino/kabanery-tree-select.git"
+  },
+  "keywords": [
+    "tree",
+    "select",
+    "kabanery"
+  ],
+  "author": "ddchen",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/LoveKino/kabanery-tree-select/issues"
+  },
+  "homepage": "https://github.com/LoveKino/kabanery-tree-select#readme",
+  "dependencies": {
+    "basetype": "^0.1.4",
+    "bolzano": "^0.1.0",
+    "kabanery": "^0.1.0"
+  },
+  "devDependencies": {
+    "webpack": "^1.14.0"
+  }
+}
