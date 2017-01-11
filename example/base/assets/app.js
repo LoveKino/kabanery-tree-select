@@ -54,7 +54,16 @@
 	        b: {
 	            b1: 5,
 	            b2: {
-	                b3: 10
+	                b3: 10,
+	                b4: 10,
+	                b5: 10,
+	                b6: 10,
+	                b7: 10,
+	                b8: 10,
+	                b9: 10,
+	                b10: 10,
+	                b11: 10,
+	                b12: 10
 	            }
 	        },
 	        a1: 11,
@@ -99,7 +108,7 @@
 
 	let {
 	    map, compact, mergeMap
-	} = __webpack_require__(31);
+	} = __webpack_require__(28);
 
 	let {
 	    isObject
@@ -107,15 +116,15 @@
 
 	let {
 	    getWindowWidth, getWindowHeight
-	} = __webpack_require__(34);
+	} = __webpack_require__(31);
 
 	let {
 	    hasOwnProperty
-	} = __webpack_require__(19);
+	} = __webpack_require__(34);
 
-	let idgener = __webpack_require__(37);
+	let idgener = __webpack_require__(38);
 
-	let triangle = __webpack_require__(39);
+	let triangle = __webpack_require__(40);
 
 	/**
 	 * @param data Object
@@ -131,7 +140,6 @@
 	}, {
 	    update
 	}) => {
-
 	    let selectedName = selectedPath.split('.')[0];
 	    let restPath = selectedPath.substring(selectedName.length + 1);
 	    let itemWidth = 164,
@@ -148,11 +156,17 @@
 	            left = targetPosition.left - left + itemWidth;
 	            top = targetPosition.top + top;
 	            if (targetPosition.right + itemWidth > windowWidth) {
+	                // show in left
 	                left = left - 2 * itemWidth;
+
+	                if (targetPosition.left - itemWidth < 0) {
+	                    left = targetPosition.left + 10;
+	                }
 	            }
 	            let h = itemHeight * Object.keys(item).length;
 	            if (targetPosition.bottom + h > windowHeight) {
-	                top = top - h;
+	                // show in top
+	                top = Math.max(top - h, 10);
 	            }
 	        }
 
@@ -273,8 +287,7 @@
 	                        update('hidden', true);
 	                    }
 	                }
-	            }),
-
+	            })
 	        ]);
 	    }));
 	});
@@ -313,9 +326,9 @@
 
 	let plugs = __webpack_require__(17);
 
-	let view = __webpack_require__(24);
+	let view = __webpack_require__(21);
 
-	let mount = __webpack_require__(30);
+	let mount = __webpack_require__(27);
 
 	module.exports = {
 	    n,
@@ -1757,7 +1770,7 @@
 	'use strict';
 
 	let twowaybinding = __webpack_require__(18);
-	let eventError = __webpack_require__(23);
+	let eventError = __webpack_require__(20);
 
 	module.exports = {
 	    twowaybinding,
@@ -1799,7 +1812,7 @@
 
 	let {
 	    reduce
-	} = __webpack_require__(20);
+	} = __webpack_require__(14);
 	let {
 	    funType, isObject, or, isString, isFalsy
 	} = __webpack_require__(7);
@@ -1849,16 +1862,13 @@
 	    if (!parts.length) return;
 	    for (let i = 0; i < parts.length - 1; i++) {
 	        let part = parts[i];
-	        let next = parent[part];
-	        if (!isObject(next)) {
-	            next = {};
-	            parent[part] = next;
-	        }
-	        parent = next;
+	        parent = parent[part];
+	        // avoid exception
+	        if (!isObject(parent)) return null;
 	    }
 
 	    parent[parts[parts.length - 1]] = value;
-	    return sandbox;
+	    return true;
 	};
 
 	/**
@@ -1927,18 +1937,13 @@
 	        return Promise.resolve();
 	    }
 	    let fun = list[0];
-	    try {
-	        let v = fun && fun.apply(context, params);
-
-	        if (stopV && v === stopV) {
-	            return Promise.resolve(stopV);
-	        }
-	        return Promise.resolve(v).then(() => {
-	            return runSequence(list.slice(1), params, context, stopV);
-	        });
-	    } catch (err) {
-	        return Promise.reject(err);
+	    let v = fun && fun.apply(context, params);
+	    if (stopV && v === stopV) {
+	        return Promise.resolve(stopV);
 	    }
+	    return Promise.resolve(v).then(() => {
+	        return runSequence(list.slice(1), params, context, stopV);
+	    });
 	};
 
 	module.exports = {
@@ -1956,325 +1961,6 @@
 
 /***/ },
 /* 20 */
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-
-	let {
-	    isObject, funType, or, isString, isFalsy, likeArray
-	} = __webpack_require__(7);
-
-	let iterate = __webpack_require__(21);
-
-	let {
-	    map, reduce, find, findIndex, forEach, filter, any, exist, compact
-	} = __webpack_require__(22);
-
-	let contain = (list, item, fopts) => findIndex(list, item, fopts) !== -1;
-
-	let difference = (list1, list2, fopts) => {
-	    return reduce(list1, (prev, item) => {
-	        if (!contain(list2, item, fopts) &&
-	            !contain(prev, item, fopts)) {
-	            prev.push(item);
-	        }
-	        return prev;
-	    }, []);
-	};
-
-	let union = (list1, list2, fopts) => deRepeat(list2, fopts, deRepeat(list1, fopts));
-
-	let mergeMap = (map1 = {}, map2 = {}) => reduce(map2, setValueKey, reduce(map1, setValueKey, {}));
-
-	let setValueKey = (obj, value, key) => {
-	    obj[key] = value;
-	    return obj;
-	};
-
-	let interset = (list1, list2, fopts) => {
-	    return reduce(list1, (prev, cur) => {
-	        if (contain(list2, cur, fopts)) {
-	            prev.push(cur);
-	        }
-	        return prev;
-	    }, []);
-	};
-
-	let deRepeat = (list, fopts, init = []) => {
-	    return reduce(list, (prev, cur) => {
-	        if (!contain(prev, cur, fopts)) {
-	            prev.push(cur);
-	        }
-	        return prev;
-	    }, init);
-	};
-
-	/**
-	 * a.b.c
-	 */
-	let get = funType((sandbox, name = '') => {
-	    name = name.trim();
-	    let parts = !name ? [] : name.split('.');
-	    return reduce(parts, getValue, sandbox, invertLogic);
-	}, [
-	    isObject,
-	    or(isString, isFalsy)
-	]);
-
-	let getValue = (obj, key) => obj[key];
-
-	let invertLogic = v => !v;
-
-	let delay = (time) => new Promise((resolve) => {
-	    setTimeout(resolve, time);
-	});
-
-	let flat = (list) => {
-	    if (likeArray(list) && !isString(list)) {
-	        return reduce(list, (prev, item) => {
-	            prev = prev.concat(flat(item));
-	            return prev;
-	        }, []);
-	    } else {
-	        return [list];
-	    }
-	};
-
-	module.exports = {
-	    flat,
-	    contain,
-	    difference,
-	    union,
-	    interset,
-	    map,
-	    reduce,
-	    iterate,
-	    find,
-	    findIndex,
-	    deRepeat,
-	    forEach,
-	    filter,
-	    any,
-	    exist,
-	    get,
-	    delay,
-	    mergeMap,
-	    compact
-	};
-
-
-/***/ },
-/* 21 */
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-
-	let {
-	    likeArray, isObject, funType, isFunction, isUndefined, or, isNumber, isFalsy, mapType
-	} = __webpack_require__(7);
-
-	/**
-	 *
-	 * preidcate: chose items to iterate
-	 * limit: when to stop iteration
-	 * transfer: transfer item
-	 * output
-	 */
-	let iterate = funType((domain = [], opts = {}) => {
-	    let {
-	        predicate, transfer, output, limit, def
-	    } = opts;
-
-	    opts.predicate = predicate || truthy;
-	    opts.transfer = transfer || id;
-	    opts.output = output || toList;
-	    if (limit === undefined) limit = domain && domain.length;
-	    limit = opts.limit = stopCondition(limit);
-
-	    let rets = def;
-	    let count = 0;
-
-	    if (likeArray(domain)) {
-	        for (let i = 0; i < domain.length; i++) {
-	            let itemRet = iterateItem(domain, i, count, rets, opts);
-	            rets = itemRet.rets;
-	            count = itemRet.count;
-	            if (itemRet.stop) return rets;
-	        }
-	    } else if (isObject(domain)) {
-	        for (let name in domain) {
-	            let itemRet = iterateItem(domain, name, count, rets, opts);
-	            rets = itemRet.rets;
-	            count = itemRet.count;
-	            if (itemRet.stop) return rets;
-	        }
-	    }
-
-	    return rets;
-	}, [
-	    or(isObject, isFunction, isFalsy),
-	    or(isUndefined, mapType({
-	        predicate: or(isFunction, isFalsy),
-	        transfer: or(isFunction, isFalsy),
-	        output: or(isFunction, isFalsy),
-	        limit: or(isUndefined, isNumber, isFunction)
-	    }))
-	]);
-
-	let iterateItem = (domain, name, count, rets, {
-	    predicate, transfer, output, limit
-	}) => {
-	    let item = domain[name];
-	    if (limit(rets, item, name, domain, count)) {
-	        // stop
-	        return {
-	            stop: true,
-	            count,
-	            rets
-	        };
-	    }
-
-	    if (predicate(item)) {
-	        rets = output(rets, transfer(item, name, domain, rets), name, domain);
-	        count++;
-	    }
-	    return {
-	        stop: false,
-	        count,
-	        rets
-	    };
-	};
-
-	let stopCondition = (limit) => {
-	    if (isUndefined(limit)) {
-	        return falsy;
-	    } else if (isNumber(limit)) {
-	        return (rets, item, name, domain, count) => count >= limit;
-	    } else {
-	        return limit;
-	    }
-	};
-
-	let toList = (prev, v) => {
-	    prev.push(v);
-	    return prev;
-	};
-
-	let truthy = () => true;
-
-	let falsy = () => false;
-
-	let id = v => v;
-
-	module.exports = iterate;
-
-
-/***/ },
-/* 22 */
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-
-	let iterate = __webpack_require__(21);
-
-	let defauls = {
-	    eq: (v1, v2) => v1 === v2
-	};
-
-	let setDefault = (opts, defauls) => {
-	    for (let name in defauls) {
-	        opts[name] = opts[name] || defauls[name];
-	    }
-	};
-
-	let forEach = (list, handler) => iterate(list, {
-	    limit: (rets) => {
-	        if (rets === true) return true;
-	        return false;
-	    },
-	    transfer: handler,
-	    output: (prev, cur) => cur,
-	    def: false
-	});
-
-	let map = (list, handler, limit) => iterate(list, {
-	    transfer: handler,
-	    def: [],
-	    limit
-	});
-
-	let reduce = (list, handler, def, limit) => iterate(list, {
-	    output: handler,
-	    def,
-	    limit
-	});
-
-	let filter = (list, handler, limit) => reduce(list, (prev, cur, index, list) => {
-	    handler && handler(cur, index, list) && prev.push(cur);
-	    return prev;
-	}, [], limit);
-
-	let find = (list, item, fopts) => {
-	    let index = findIndex(list, item, fopts);
-	    if (index === -1) return undefined;
-	    return list[index];
-	};
-
-	let any = (list, handler) => reduce(list, (prev, cur, index, list) => {
-	    let curLogic = handler && handler(cur, index, list);
-	    return prev && originLogic(curLogic);
-	}, true, falsyIt);
-
-	let exist = (list, handler) => reduce(list, (prev, cur, index, list) => {
-	    let curLogic = handler && handler(cur, index, list);
-	    return prev || originLogic(curLogic);
-	}, false, originLogic);
-
-	let findIndex = (list, item, fopts = {}) => {
-	    setDefault(fopts, defauls);
-
-	    let {
-	        eq
-	    } = fopts;
-	    let predicate = (v) => eq(item, v);
-	    let ret = iterate(list, {
-	        transfer: indexTransfer,
-	        limit: onlyOne,
-	        predicate,
-	        def: []
-	    });
-	    if (!ret.length) return -1;
-	    return ret[0];
-	};
-
-	let compact = (list) => reduce(list, (prev, cur) => {
-	    if (cur) prev.push(cur);
-	    return prev;
-	}, []);
-
-	let indexTransfer = (item, index) => index;
-
-	let onlyOne = (rets, item, name, domain, count) => count >= 1;
-
-	let falsyIt = v => !v;
-
-	let originLogic = v => !!v;
-
-	module.exports = {
-	    map,
-	    forEach,
-	    reduce,
-	    find,
-	    findIndex,
-	    filter,
-	    any,
-	    exist,
-	    compact
-	};
-
-
-/***/ },
-/* 23 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -2305,7 +1991,7 @@
 
 
 /***/ },
-/* 24 */
+/* 21 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -2322,7 +2008,7 @@
 	    forEach
 	} = __webpack_require__(14);
 
-	let replace = __webpack_require__(25);
+	let replace = __webpack_require__(22);
 
 	/**
 	 * render function: (data) => node
@@ -2510,7 +2196,7 @@
 
 
 /***/ },
-/* 25 */
+/* 22 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -2531,7 +2217,7 @@
 	    forEach
 	} = __webpack_require__(14);
 
-	let applyAttibutes = __webpack_require__(26);
+	let applyAttibutes = __webpack_require__(23);
 
 	let replaceDirectly = (node, newNode) => {
 	    let parent = node.parentNode;
@@ -2643,14 +2329,14 @@
 
 
 /***/ },
-/* 26 */
+/* 23 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
 	let {
 	    getAttributeMap
-	} = __webpack_require__(27);
+	} = __webpack_require__(24);
 
 	let {
 	    hasOwnProperty
@@ -2689,14 +2375,14 @@
 
 
 /***/ },
-/* 27 */
+/* 24 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
-	let shadowFrame = __webpack_require__(28);
+	let shadowFrame = __webpack_require__(25);
 
-	let startMomenter = __webpack_require__(29);
+	let startMomenter = __webpack_require__(26);
 
 	let getX = (elem) => {
 	    var x = 0;
@@ -2779,7 +2465,7 @@
 
 
 /***/ },
-/* 28 */
+/* 25 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -2833,7 +2519,7 @@
 
 
 /***/ },
-/* 29 */
+/* 26 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -2888,7 +2574,7 @@
 
 
 /***/ },
-/* 30 */
+/* 27 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -2924,7 +2610,7 @@
 
 
 /***/ },
-/* 31 */
+/* 28 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -2933,11 +2619,11 @@
 	    isObject, funType, or, isString, isFalsy, likeArray
 	} = __webpack_require__(7);
 
-	let iterate = __webpack_require__(32);
+	let iterate = __webpack_require__(29);
 
 	let {
 	    map, reduce, find, findIndex, forEach, filter, any, exist, compact, reverse
-	} = __webpack_require__(33);
+	} = __webpack_require__(30);
 
 	let contain = (list, item, fopts) => findIndex(list, item, fopts) !== -1;
 
@@ -3034,7 +2720,7 @@
 
 
 /***/ },
-/* 32 */
+/* 29 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -3179,14 +2865,14 @@
 
 
 /***/ },
-/* 33 */
+/* 30 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
 	let {
 	    iterate
-	} = __webpack_require__(32);
+	} = __webpack_require__(29);
 
 	let {isFunction} = __webpack_require__(7);
 
@@ -3293,14 +2979,14 @@
 
 
 /***/ },
-/* 34 */
+/* 31 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
-	let shadowFrame = __webpack_require__(35);
+	let shadowFrame = __webpack_require__(32);
 
-	let startMomenter = __webpack_require__(36);
+	let startMomenter = __webpack_require__(33);
 
 	let getX = (elem) => {
 	    var x = 0;
@@ -3397,7 +3083,7 @@
 
 
 /***/ },
-/* 35 */
+/* 32 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -3451,7 +3137,7 @@
 
 
 /***/ },
-/* 36 */
+/* 33 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -3502,14 +3188,496 @@
 
 
 /***/ },
+/* 34 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	let {
+	    reduce
+	} = __webpack_require__(35);
+	let {
+	    funType, isObject, or, isString, isFalsy
+	} = __webpack_require__(7);
+
+	let defineProperty = (obj, key, opts) => {
+	    if (Object.defineProperty) {
+	        Object.defineProperty(obj, key, opts);
+	    } else {
+	        obj[key] = opts.value;
+	    }
+	    return obj;
+	};
+
+	let hasOwnProperty = (obj, key) => {
+	    if (obj.hasOwnProperty) {
+	        return obj.hasOwnProperty(key);
+	    }
+	    for (var name in obj) {
+	        if (name === key) return true;
+	    }
+	    return false;
+	};
+
+	let toArray = (v = []) => Array.prototype.slice.call(v);
+
+	/**
+	 * a.b.c
+	 */
+	let get = funType((sandbox, name = '') => {
+	    name = name.trim();
+	    let parts = !name ? [] : name.split('.');
+	    return reduce(parts, getValue, sandbox, invertLogic);
+	}, [
+	    isObject,
+	    or(isString, isFalsy)
+	]);
+
+	let getValue = (obj, key) => obj[key];
+
+	let invertLogic = v => !v;
+
+	let set = (sandbox, name = '', value) => {
+	    name = name.trim();
+	    let parts = !name ? [] : name.split('.');
+	    let parent = sandbox;
+	    if (!isObject(parent)) return;
+	    if (!parts.length) return;
+	    for (let i = 0; i < parts.length - 1; i++) {
+	        let part = parts[i];
+	        let next = parent[part];
+	        if (!isObject(next)) {
+	            next = {};
+	            parent[part] = next;
+	        }
+	        parent = next;
+	    }
+
+	    parent[parts[parts.length - 1]] = value;
+	    return sandbox;
+	};
+
+	/**
+	 * provide property:
+	 *
+	 * 1. read props freely
+	 *
+	 * 2. change props by provide token
+	 */
+
+	let authProp = (token) => {
+	    let set = (obj, key, value) => {
+	        let temp = null;
+
+	        if (!hasOwnProperty(obj, key)) {
+	            defineProperty(obj, key, {
+	                enumerable: false,
+	                configurable: false,
+	                set: (value) => {
+	                    if (isObject(value)) {
+	                        if (value.token === token) {
+	                            // save
+	                            temp = value.value;
+	                        }
+	                    }
+	                },
+	                get: () => {
+	                    return temp;
+	                }
+	            });
+	        }
+
+	        setProp(obj, key, value);
+	    };
+
+	    let setProp = (obj, key, value) => {
+	        obj[key] = {
+	            token,
+	            value
+	        };
+	    };
+
+	    return {
+	        set
+	    };
+	};
+
+	let evalCode = (code) => {
+	    if (typeof code !== 'string') return code;
+	    return eval(`(function(){
+	    try {
+	        ${code}
+	    } catch(err) {
+	        console.log('Error happened, when eval code.');
+	        throw err;
+	    }
+	})()`);
+	};
+
+	let delay = (time) => new Promise((resolve) => {
+	    setTimeout(resolve, time);
+	});
+
+	let runSequence = (list, params = [], context, stopV) => {
+	    if (!list.length) {
+	        return Promise.resolve();
+	    }
+	    let fun = list[0];
+	    try {
+	        let v = fun && fun.apply(context, params);
+
+	        if (stopV && v === stopV) {
+	            return Promise.resolve(stopV);
+	        }
+	        return Promise.resolve(v).then(() => {
+	            return runSequence(list.slice(1), params, context, stopV);
+	        });
+	    } catch (err) {
+	        return Promise.reject(err);
+	    }
+	};
+
+	module.exports = {
+	    defineProperty,
+	    hasOwnProperty,
+	    toArray,
+	    get,
+	    set,
+	    authProp,
+	    evalCode,
+	    delay,
+	    runSequence
+	};
+
+
+/***/ },
+/* 35 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	let {
+	    isObject, funType, or, isString, isFalsy, likeArray
+	} = __webpack_require__(7);
+
+	let iterate = __webpack_require__(36);
+
+	let {
+	    map, reduce, find, findIndex, forEach, filter, any, exist, compact
+	} = __webpack_require__(37);
+
+	let contain = (list, item, fopts) => findIndex(list, item, fopts) !== -1;
+
+	let difference = (list1, list2, fopts) => {
+	    return reduce(list1, (prev, item) => {
+	        if (!contain(list2, item, fopts) &&
+	            !contain(prev, item, fopts)) {
+	            prev.push(item);
+	        }
+	        return prev;
+	    }, []);
+	};
+
+	let union = (list1, list2, fopts) => deRepeat(list2, fopts, deRepeat(list1, fopts));
+
+	let mergeMap = (map1 = {}, map2 = {}) => reduce(map2, setValueKey, reduce(map1, setValueKey, {}));
+
+	let setValueKey = (obj, value, key) => {
+	    obj[key] = value;
+	    return obj;
+	};
+
+	let interset = (list1, list2, fopts) => {
+	    return reduce(list1, (prev, cur) => {
+	        if (contain(list2, cur, fopts)) {
+	            prev.push(cur);
+	        }
+	        return prev;
+	    }, []);
+	};
+
+	let deRepeat = (list, fopts, init = []) => {
+	    return reduce(list, (prev, cur) => {
+	        if (!contain(prev, cur, fopts)) {
+	            prev.push(cur);
+	        }
+	        return prev;
+	    }, init);
+	};
+
+	/**
+	 * a.b.c
+	 */
+	let get = funType((sandbox, name = '') => {
+	    name = name.trim();
+	    let parts = !name ? [] : name.split('.');
+	    return reduce(parts, getValue, sandbox, invertLogic);
+	}, [
+	    isObject,
+	    or(isString, isFalsy)
+	]);
+
+	let getValue = (obj, key) => obj[key];
+
+	let invertLogic = v => !v;
+
+	let delay = (time) => new Promise((resolve) => {
+	    setTimeout(resolve, time);
+	});
+
+	let flat = (list) => {
+	    if (likeArray(list) && !isString(list)) {
+	        return reduce(list, (prev, item) => {
+	            prev = prev.concat(flat(item));
+	            return prev;
+	        }, []);
+	    } else {
+	        return [list];
+	    }
+	};
+
+	module.exports = {
+	    flat,
+	    contain,
+	    difference,
+	    union,
+	    interset,
+	    map,
+	    reduce,
+	    iterate,
+	    find,
+	    findIndex,
+	    deRepeat,
+	    forEach,
+	    filter,
+	    any,
+	    exist,
+	    get,
+	    delay,
+	    mergeMap,
+	    compact
+	};
+
+
+/***/ },
+/* 36 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	let {
+	    likeArray, isObject, funType, isFunction, isUndefined, or, isNumber, isFalsy, mapType
+	} = __webpack_require__(7);
+
+	/**
+	 *
+	 * preidcate: chose items to iterate
+	 * limit: when to stop iteration
+	 * transfer: transfer item
+	 * output
+	 */
+	let iterate = funType((domain = [], opts = {}) => {
+	    let {
+	        predicate, transfer, output, limit, def
+	    } = opts;
+
+	    opts.predicate = predicate || truthy;
+	    opts.transfer = transfer || id;
+	    opts.output = output || toList;
+	    if (limit === undefined) limit = domain && domain.length;
+	    limit = opts.limit = stopCondition(limit);
+
+	    let rets = def;
+	    let count = 0;
+
+	    if (likeArray(domain)) {
+	        for (let i = 0; i < domain.length; i++) {
+	            let itemRet = iterateItem(domain, i, count, rets, opts);
+	            rets = itemRet.rets;
+	            count = itemRet.count;
+	            if (itemRet.stop) return rets;
+	        }
+	    } else if (isObject(domain)) {
+	        for (let name in domain) {
+	            let itemRet = iterateItem(domain, name, count, rets, opts);
+	            rets = itemRet.rets;
+	            count = itemRet.count;
+	            if (itemRet.stop) return rets;
+	        }
+	    }
+
+	    return rets;
+	}, [
+	    or(isObject, isFunction, isFalsy),
+	    or(isUndefined, mapType({
+	        predicate: or(isFunction, isFalsy),
+	        transfer: or(isFunction, isFalsy),
+	        output: or(isFunction, isFalsy),
+	        limit: or(isUndefined, isNumber, isFunction)
+	    }))
+	]);
+
+	let iterateItem = (domain, name, count, rets, {
+	    predicate, transfer, output, limit
+	}) => {
+	    let item = domain[name];
+	    if (limit(rets, item, name, domain, count)) {
+	        // stop
+	        return {
+	            stop: true,
+	            count,
+	            rets
+	        };
+	    }
+
+	    if (predicate(item)) {
+	        rets = output(rets, transfer(item, name, domain, rets), name, domain);
+	        count++;
+	    }
+	    return {
+	        stop: false,
+	        count,
+	        rets
+	    };
+	};
+
+	let stopCondition = (limit) => {
+	    if (isUndefined(limit)) {
+	        return falsy;
+	    } else if (isNumber(limit)) {
+	        return (rets, item, name, domain, count) => count >= limit;
+	    } else {
+	        return limit;
+	    }
+	};
+
+	let toList = (prev, v) => {
+	    prev.push(v);
+	    return prev;
+	};
+
+	let truthy = () => true;
+
+	let falsy = () => false;
+
+	let id = v => v;
+
+	module.exports = iterate;
+
+
+/***/ },
 /* 37 */
 /***/ function(module, exports, __webpack_require__) {
 
-	module.exports = __webpack_require__(38);
+	'use strict';
+
+	let iterate = __webpack_require__(36);
+
+	let defauls = {
+	    eq: (v1, v2) => v1 === v2
+	};
+
+	let setDefault = (opts, defauls) => {
+	    for (let name in defauls) {
+	        opts[name] = opts[name] || defauls[name];
+	    }
+	};
+
+	let forEach = (list, handler) => iterate(list, {
+	    limit: (rets) => {
+	        if (rets === true) return true;
+	        return false;
+	    },
+	    transfer: handler,
+	    output: (prev, cur) => cur,
+	    def: false
+	});
+
+	let map = (list, handler, limit) => iterate(list, {
+	    transfer: handler,
+	    def: [],
+	    limit
+	});
+
+	let reduce = (list, handler, def, limit) => iterate(list, {
+	    output: handler,
+	    def,
+	    limit
+	});
+
+	let filter = (list, handler, limit) => reduce(list, (prev, cur, index, list) => {
+	    handler && handler(cur, index, list) && prev.push(cur);
+	    return prev;
+	}, [], limit);
+
+	let find = (list, item, fopts) => {
+	    let index = findIndex(list, item, fopts);
+	    if (index === -1) return undefined;
+	    return list[index];
+	};
+
+	let any = (list, handler) => reduce(list, (prev, cur, index, list) => {
+	    let curLogic = handler && handler(cur, index, list);
+	    return prev && originLogic(curLogic);
+	}, true, falsyIt);
+
+	let exist = (list, handler) => reduce(list, (prev, cur, index, list) => {
+	    let curLogic = handler && handler(cur, index, list);
+	    return prev || originLogic(curLogic);
+	}, false, originLogic);
+
+	let findIndex = (list, item, fopts = {}) => {
+	    setDefault(fopts, defauls);
+
+	    let {
+	        eq
+	    } = fopts;
+	    let predicate = (v) => eq(item, v);
+	    let ret = iterate(list, {
+	        transfer: indexTransfer,
+	        limit: onlyOne,
+	        predicate,
+	        def: []
+	    });
+	    if (!ret.length) return -1;
+	    return ret[0];
+	};
+
+	let compact = (list) => reduce(list, (prev, cur) => {
+	    if (cur) prev.push(cur);
+	    return prev;
+	}, []);
+
+	let indexTransfer = (item, index) => index;
+
+	let onlyOne = (rets, item, name, domain, count) => count >= 1;
+
+	let falsyIt = v => !v;
+
+	let originLogic = v => !!v;
+
+	module.exports = {
+	    map,
+	    forEach,
+	    reduce,
+	    find,
+	    findIndex,
+	    filter,
+	    any,
+	    exist,
+	    compact
+	};
 
 
 /***/ },
 /* 38 */
+/***/ function(module, exports, __webpack_require__) {
+
+	module.exports = __webpack_require__(39);
+
+
+/***/ },
+/* 39 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -3559,7 +3727,7 @@
 
 
 /***/ },
-/* 39 */
+/* 40 */
 /***/ function(module, exports) {
 
 	'use strict';

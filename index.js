@@ -38,7 +38,6 @@ let renderMap = view(({
 }, {
     update
 }) => {
-
     let selectedName = selectedPath.split('.')[0];
     let restPath = selectedPath.substring(selectedName.length + 1);
     let itemWidth = 164,
@@ -55,11 +54,17 @@ let renderMap = view(({
             left = targetPosition.left - left + itemWidth;
             top = targetPosition.top + top;
             if (targetPosition.right + itemWidth > windowWidth) {
+                // show in left
                 left = left - 2 * itemWidth;
+
+                if (targetPosition.left - itemWidth < 0) {
+                    left = targetPosition.left + 10;
+                }
             }
             let h = itemHeight * Object.keys(item).length;
             if (targetPosition.bottom + h > windowHeight) {
-                top = top - h;
+                // show in top
+                top = Math.max(top - h, 10);
             }
         }
 
@@ -180,8 +185,7 @@ let renderMap = view(({
                         update('hidden', true);
                     }
                 }
-            }),
-
+            })
         ]);
     }));
 });
