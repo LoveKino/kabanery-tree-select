@@ -62,7 +62,7 @@
 	        a3: 13,
 	        a4: 14,
 	        a5: 15,
-	        c: {
+	        'cdhjbcdsh9847923847023sbfjdvbfjhbhj': {
 	            d: 3,
 	            e: {
 	                f: 10,
@@ -71,6 +71,12 @@
 	                }
 	            }
 	        }
+	    },
+
+	    nameMap: {
+	        'a4': 'this is a4',
+	        'b.b1': 'this is b.b1',
+	        'b.b2.b3': 'this is b.b2.b3'
 	    },
 
 	    onselected: (v, path) => {
@@ -92,7 +98,7 @@
 	} = __webpack_require__(2);
 
 	let {
-	    map, compact
+	    map, compact, mergeMap
 	} = __webpack_require__(31);
 
 	let {
@@ -103,7 +109,13 @@
 	    getWindowWidth, getWindowHeight
 	} = __webpack_require__(34);
 
+	let {
+	    hasOwnProperty
+	} = __webpack_require__(19);
+
 	let idgener = __webpack_require__(37);
+
+	let triangle = __webpack_require__(39);
 
 	/**
 	 * @param data Object
@@ -115,15 +127,15 @@
 	    hidden,
 	    onselected,
 	    targetPosition,
-	    maxShowItemNum = 10, selectedPath = '', parentPath = '',
+	    maxShowItemNum = 10, selectedPath = '', parentPath = '', nameMap = {}
 	}, {
 	    update
 	}) => {
 
 	    let selectedName = selectedPath.split('.')[0];
 	    let restPath = selectedPath.substring(selectedName.length + 1);
-	    let width = 164,
-	        height = 16;
+	    let itemWidth = 164,
+	        itemHeight = 16;
 	    if (hidden) return null;
 
 	    let expandedItem = (item, name) => {
@@ -133,14 +145,14 @@
 	            windowHeight = getWindowHeight();
 
 	        if (targetPosition) {
-	            left = targetPosition.left - left + width;
+	            left = targetPosition.left - left + itemWidth;
 	            top = targetPosition.top + top;
-	            if (targetPosition.right + width > windowWidth) {
-	                left = left - 2 * width;
+	            if (targetPosition.right + itemWidth > windowWidth) {
+	                left = left - 2 * itemWidth;
 	            }
-	            let itemHeight = height * Object.keys(item).length;
-	            if (targetPosition.bottom + itemHeight > windowHeight) {
-	                top = top - itemHeight;
+	            let h = itemHeight * Object.keys(item).length;
+	            if (targetPosition.bottom + h > windowHeight) {
+	                top = top - h;
 	            }
 	        }
 
@@ -155,14 +167,15 @@
 	            data: item,
 	            selectedPath: restPath,
 	            onselected,
-	            parentPath: getPath(name, parentPath)
+	            parentPath: getPath(name, parentPath),
+	            nameMap
 	        }));
 	    };
 
 	    return n('ul', {
 	        style: {
-	            width: width,
-	            maxHeight: maxShowItemNum * height,
+	            width: itemWidth,
+	            maxHeight: maxShowItemNum * itemHeight,
 	            overflow: 'scroll',
 	            'display': 'inline-block',
 	            'margin': 0,
@@ -205,7 +218,7 @@
 	                        overflow: 'hidden'
 	                    }
 	                }, [
-	                    n('span', name)
+	                    n('span', hasOwnProperty(nameMap, getPath(name, parentPath)) ? nameMap[getPath(name, parentPath)] : name)
 	                ]),
 
 	                isObject(item) && [
@@ -214,10 +227,20 @@
 	                            'float': 'right',
 	                            position: 'relative',
 	                            width: '5%',
-	                            height
+	                            height: itemHeight
 	                        }
 	                    }, [
-	                        n('span', '>'),
+	                        n('div', {
+	                            style: mergeMap({
+	                                position: 'relative',
+	                                top: (itemHeight - 10) / 2
+	                            }, triangle({
+	                                direction: 'right',
+	                                top: 5,
+	                                bottom: 5,
+	                                left: 10
+	                            }))
+	                        }),
 	                        name === selectedName && expandedItem(item, name),
 	                    ])
 	                ],
@@ -1826,13 +1849,16 @@
 	    if (!parts.length) return;
 	    for (let i = 0; i < parts.length - 1; i++) {
 	        let part = parts[i];
-	        parent = parent[part];
-	        // avoid exception
-	        if (!isObject(parent)) return null;
+	        let next = parent[part];
+	        if (!isObject(next)) {
+	            next = {};
+	            parent[part] = next;
+	        }
+	        parent = next;
 	    }
 
 	    parent[parts[parts.length - 1]] = value;
-	    return true;
+	    return sandbox;
 	};
 
 	/**
@@ -1901,13 +1927,18 @@
 	        return Promise.resolve();
 	    }
 	    let fun = list[0];
-	    let v = fun && fun.apply(context, params);
-	    if (stopV && v === stopV) {
-	        return Promise.resolve(stopV);
+	    try {
+	        let v = fun && fun.apply(context, params);
+
+	        if (stopV && v === stopV) {
+	            return Promise.resolve(stopV);
+	        }
+	        return Promise.resolve(v).then(() => {
+	            return runSequence(list.slice(1), params, context, stopV);
+	        });
+	    } catch (err) {
+	        return Promise.reject(err);
 	    }
-	    return Promise.resolve(v).then(() => {
-	        return runSequence(list.slice(1), params, context, stopV);
-	    });
 	};
 
 	module.exports = {
@@ -3524,6 +3555,57 @@
 	        str += letter;
 	    }
 	    return str;
+	};
+
+
+/***/ },
+/* 39 */
+/***/ function(module, exports) {
+
+	'use strict';
+
+	/**
+	 * @param direction string
+	 *  direction = up | down | left | right
+	 */
+	module.exports = ({
+	    left = 0, right = 0, top = 0, bottom = 0, color = 'black', direction = 'up'
+	}) => {
+	    if (direction === 'up') {
+	        return {
+	            width: 0,
+	            height: 0,
+	            'border-left': `${left}px solid transparent`,
+	            'border-right': `${right}px solid transparent`,
+	            'border-bottom': `${bottom}px solid ${color}`
+	        };
+	    } else if (direction === 'down') {
+	        return {
+	            width: 0,
+	            height: 0,
+	            'border-left': `${left}px solid transparent`,
+	            'border-right': `${right}px solid transparent`,
+	            'border-top': `${top}px solid ${color}`
+	        };
+	    } else if (direction === 'left') {
+	        return {
+	            width: 0,
+	            height: 0,
+	            'border-top': `${top}px solid transparent`,
+	            'border-bottom': `${bottom}px solid transparent`,
+	            'border-right': `${right}px solid ${color}`
+	        };
+	    } else if (direction === 'right') {
+	        return {
+	            width: 0,
+	            height: 0,
+	            'border-top': `${top}px solid transparent`,
+	            'border-bottom': `${bottom}px solid transparent`,
+	            'border-left': `${left}px solid ${color}`
+	        };
+	    } else {
+	        throw new Error(`unexpeced direction ${direction}`);
+	    }
 	};
 
 

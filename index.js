@@ -5,7 +5,7 @@ let {
 } = require('kabanery');
 
 let {
-    map, compact
+    map, compact, mergeMap
 } = require('bolzano');
 
 let {
@@ -16,7 +16,13 @@ let {
     getWindowWidth, getWindowHeight
 } = require('doming');
 
+let {
+    hasOwnProperty
+} = require('jsenhance');
+
 let idgener = require('idgener');
+
+let triangle = require('css-shapes-object/lib/triangle');
 
 /**
  * @param data Object
@@ -28,15 +34,15 @@ let renderMap = view(({
     hidden,
     onselected,
     targetPosition,
-    maxShowItemNum = 10, selectedPath = '', parentPath = '',
+    maxShowItemNum = 10, selectedPath = '', parentPath = '', nameMap = {}
 }, {
     update
 }) => {
 
     let selectedName = selectedPath.split('.')[0];
     let restPath = selectedPath.substring(selectedName.length + 1);
-    let width = 164,
-        height = 16;
+    let itemWidth = 164,
+        itemHeight = 16;
     if (hidden) return null;
 
     let expandedItem = (item, name) => {
@@ -46,14 +52,14 @@ let renderMap = view(({
             windowHeight = getWindowHeight();
 
         if (targetPosition) {
-            left = targetPosition.left - left + width;
+            left = targetPosition.left - left + itemWidth;
             top = targetPosition.top + top;
-            if (targetPosition.right + width > windowWidth) {
-                left = left - 2 * width;
+            if (targetPosition.right + itemWidth > windowWidth) {
+                left = left - 2 * itemWidth;
             }
-            let itemHeight = height * Object.keys(item).length;
-            if (targetPosition.bottom + itemHeight > windowHeight) {
-                top = top - itemHeight;
+            let h = itemHeight * Object.keys(item).length;
+            if (targetPosition.bottom + h > windowHeight) {
+                top = top - h;
             }
         }
 
@@ -68,14 +74,15 @@ let renderMap = view(({
             data: item,
             selectedPath: restPath,
             onselected,
-            parentPath: getPath(name, parentPath)
+            parentPath: getPath(name, parentPath),
+            nameMap
         }));
     };
 
     return n('ul', {
         style: {
-            width: width,
-            maxHeight: maxShowItemNum * height,
+            width: itemWidth,
+            maxHeight: maxShowItemNum * itemHeight,
             overflow: 'scroll',
             'display': 'inline-block',
             'margin': 0,
@@ -118,7 +125,7 @@ let renderMap = view(({
                         overflow: 'hidden'
                     }
                 }, [
-                    n('span', name)
+                    n('span', hasOwnProperty(nameMap, getPath(name, parentPath)) ? nameMap[getPath(name, parentPath)] : name)
                 ]),
 
                 isObject(item) && [
@@ -127,10 +134,20 @@ let renderMap = view(({
                             'float': 'right',
                             position: 'relative',
                             width: '5%',
-                            height
+                            height: itemHeight
                         }
                     }, [
-                        n('span', '>'),
+                        n('div', {
+                            style: mergeMap({
+                                position: 'relative',
+                                top: (itemHeight - 10) / 2
+                            }, triangle({
+                                direction: 'right',
+                                top: 5,
+                                bottom: 5,
+                                left: 10
+                            }))
+                        }),
                         name === selectedName && expandedItem(item, name),
                     ])
                 ],

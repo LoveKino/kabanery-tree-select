@@ -16,7 +16,7 @@ let treeSelect = TreeSelect({
         a3: 13,
         a4: 14,
         a5: 15,
-        c: {
+        'cdhjbcdsh9847923847023sbfjdvbfjhbhj': {
             d: 3,
             e: {
                 f: 10,
@@ -25,6 +25,12 @@ let treeSelect = TreeSelect({
                 }
             }
         }
+    },
+
+    nameMap: {
+        'a4': 'this is a4',
+        'b.b1': 'this is b.b1',
+        'b.b2.b3': 'this is b.b2.b3'
     },
 
     onselected: (v, path) => {
