@@ -46,7 +46,9 @@
 
 	'use strict';
 
-	let TreeSelect = __webpack_require__(1);
+	let {mount} = __webpack_require__(1);
+
+	let TreeSelect = __webpack_require__(28);
 
 	let treeSelect = TreeSelect({
 	    data: {
@@ -93,7 +95,7 @@
 	    }
 	});
 
-	document.body.appendChild(treeSelect);
+	mount(treeSelect, document.body);
 
 
 /***/ },
@@ -102,216 +104,101 @@
 
 	'use strict';
 
-	let {
-	    view, n
-	} = __webpack_require__(2);
-
-	let {
-	    map, compact, mergeMap
-	} = __webpack_require__(28);
-
-	let {
-	    isObject
-	} = __webpack_require__(7);
-
-	let {
-	    getWindowWidth, getWindowHeight
-	} = __webpack_require__(31);
-
-	let {
-	    hasOwnProperty
-	} = __webpack_require__(34);
-
-	let idgener = __webpack_require__(38);
-
-	let triangle = __webpack_require__(40);
+	module.exports = __webpack_require__(2);
 
 	/**
-	 * @param data Object
-	 *  data is a normal js object without circle
+	 * @readme-quick-run
+	 *
+	 * Basic way to construct a view.
+	 *
+	 * [readme-lang:zh]构造一个组件的简单方法
+	 *
+	 * ## test tar=js r_c=kabanery env=browser
+	 * let {view, n, mount} = kabanery;
+	 *
+	 * let MyView = view((data) => {
+	 *      let {type} = data;
+	 *
+	 *      return n('div', {
+	 *         id: 'a',
+	 *         style: {
+	 *            fontSize: 10
+	 *         }
+	 *      },[
+	 *          type === 2 && n('span', 'second'),
+	 *          type === 3 && n('div', 'third')
+	 *      ]);
+	 * });
+	 *
+	 * mount(MyView({type: 3}), document.body);
+	 *
+	 * console.log(document.getElementById('a').outerHTML); // print result
 	 */
 
-	let renderMap = view(({
-	    data,
-	    hidden,
-	    onselected,
-	    targetPosition,
-	    maxShowItemNum = 10, selectedPath = '', parentPath = '', nameMap = {}
-	}, {
-	    update
-	}) => {
-	    let selectedName = selectedPath.split('.')[0];
-	    let restPath = selectedPath.substring(selectedName.length + 1);
-	    let itemWidth = 164,
-	        itemHeight = 16;
-	    if (hidden) return null;
-
-	    let expandedItem = (item, name) => {
-	        let left = 0,
-	            top = 0,
-	            windowWidth = getWindowWidth(),
-	            windowHeight = getWindowHeight();
-
-	        if (targetPosition) {
-	            left = targetPosition.left - left + itemWidth;
-	            top = targetPosition.top + top;
-	            if (targetPosition.right + itemWidth > windowWidth) {
-	                // show in left
-	                left = left - 2 * itemWidth;
-
-	                if (targetPosition.left - itemWidth < 0) {
-	                    left = targetPosition.left + 10;
-	                }
-	            }
-	            let h = itemHeight * Object.keys(item).length;
-	            if (targetPosition.bottom + h > windowHeight) {
-	                // show in top
-	                top = Math.max(top - h, 10);
-	            }
-	        }
-
-	        return n('div', {
-	            style: {
-	                position: targetPosition ? 'fixed' : 'relative',
-	                left,
-	                top,
-	                zIndex: 1000
-	            }
-	        }, renderMap({
-	            data: item,
-	            selectedPath: restPath,
-	            onselected,
-	            parentPath: getPath(name, parentPath),
-	            nameMap
-	        }));
-	    };
-
-	    return n('ul', {
-	        style: {
-	            width: itemWidth,
-	            maxHeight: maxShowItemNum * itemHeight,
-	            overflow: 'scroll',
-	            'display': 'inline-block',
-	            'margin': 0,
-	            'padding': '3 0',
-	            border: '1px solid rgba(80, 80, 80, 0.3)',
-	            borderRadius: 4,
-	            boxShadow: '0px 0px 2px #888888',
-	            backgroundColor: 'rgba(244, 244, 244, 0.95)'
-	        }
-	    }, map(data, (item, name) => {
-	        return n('li', {
-	            style: {
-	                position: 'relative',
-	                listStyle: 'none',
-	                cursor: 'pointer',
-	                minWidth: 100,
-	                padding: '5 10',
-	                backgroundColor: name === selectedName ? '#3879d9' : 'none',
-	                color: name === selectedName ? 'white' : 'black'
-	            },
-
-	            'class': SELECT_ITEM_HOVER_CLASS,
-
-	            onclick: () => {
-	                update('hidden', true);
-	            }
-	        }, [
-	            n('div', {
-	                style: {
-	                    height: 16,
-	                    lineHeight: 16
-	                }
-	            }, [
-	                n('div', {
-	                    style: {
-	                        'float': 'left',
-	                        position: 'relative',
-	                        width: '95%',
-	                        textOverflow: 'ellipsis',
-	                        overflow: 'hidden'
-	                    }
-	                }, [
-	                    n('span', hasOwnProperty(nameMap, getPath(name, parentPath)) ? nameMap[getPath(name, parentPath)] : name)
-	                ]),
-
-	                isObject(item) && [
-	                    n('div', {
-	                        style: {
-	                            'float': 'right',
-	                            position: 'relative',
-	                            width: '5%',
-	                            height: itemHeight
-	                        }
-	                    }, [
-	                        n('div', {
-	                            style: mergeMap({
-	                                position: 'relative',
-	                                top: (itemHeight - 10) / 2
-	                            }, triangle({
-	                                direction: 'right',
-	                                top: 5,
-	                                bottom: 5,
-	                                left: 10
-	                            }))
-	                        }),
-	                        name === selectedName && expandedItem(item, name),
-	                    ])
-	                ],
-	                n('div', {
-	                    style: {
-	                        clear: 'both'
-	                    }
-	                })
-	            ]),
-
-	            n('div', {
-	                style: {
-	                    position: 'absolute',
-	                    width: '100%',
-	                    height: '100%',
-	                    left: 0,
-	                    top: 0
-	                },
-
-	                onclick: (e) => {
-	                    if (isObject(item)) {
-	                        e.stopPropagation();
-	                        // expand it
-	                        update([
-	                            ['selectedPath', name === selectedName ? '' : name],
-	                            ['targetPosition', e.target.getBoundingClientRect()]
-	                        ]);
-	                    } else {
-	                        onselected && onselected(item, getPath(name, parentPath));
-	                        update('hidden', true);
-	                    }
-	                }
-	            })
-	        ]);
-	    }));
-	});
-
-	let getPath = (name, parentPath) => {
-	    return compact([parentPath, name]).join('.');
-	};
-
-	const SELECT_ITEM_HOVER_CLASS = 'select-item-' + idgener().replace(/\./g, '-');
-
-	module.exports = (data) => {
-	    document.getElementsByTagName('head')[0].appendChild(n('style', {
-	        type: 'text/css'
-	    }, `.${SELECT_ITEM_HOVER_CLASS}:hover{background-color: #118bfb}`));
-
-	    return renderMap(data);
-	};
+	/**
+	 * @readme-quick-run
+	 *
+	 * Using update api to update a view.
+	 *
+	 * [readme-lang:zh]运用update api去更新一个view
+	 *
+	 * ## test tar=js r_c=kabanery env=browser
+	 * let {view, n, mount} = kabanery;
+	 *
+	 * let MyView = view((data, {update}) => {
+	 *      return n('div', {
+	 *         id: 'a',
+	 *         style: {
+	 *            fontSize: 10
+	 *         },
+	 *         onclick: () => {
+	 *            update('show', !data.show);
+	 *         }
+	 *      }, [
+	 *          data.show && n('div', 'show text')
+	 *      ]);
+	 * });
+	 *
+	 * mount(MyView({show: false}), document.body);
+	 *
+	 * document.getElementById('a').click(); // simulate user action
+	 * console.log(document.getElementById('a').outerHTML); // print result
+	 */
 
 
 /***/ },
 /* 2 */
 /***/ function(module, exports, __webpack_require__) {
 
-	module.exports = __webpack_require__(3);
+	'use strict';
+
+	let {
+	    n, svgn, bindPlugs
+	} = __webpack_require__(3);
+
+	let {
+	    parseArgs
+	} = __webpack_require__(4);
+
+	let plugs = __webpack_require__(16);
+
+	let view = __webpack_require__(20);
+
+	let mount = __webpack_require__(26);
+
+	let N = __webpack_require__(27);
+
+	module.exports = {
+	    n,
+	    N,
+	    svgn,
+	    view,
+	    plugs,
+	    bindPlugs,
+	    mount,
+
+	    parseArgs
+	};
 
 
 /***/ },
@@ -321,38 +208,12 @@
 	'use strict';
 
 	let {
-	    n, svgn, bindPlugs
-	} = __webpack_require__(4);
-
-	let plugs = __webpack_require__(17);
-
-	let view = __webpack_require__(21);
-
-	let mount = __webpack_require__(27);
-
-	module.exports = {
-	    n,
-	    svgn,
-	    view,
-	    plugs,
-	    bindPlugs,
-	    mount
-	};
-
-
-/***/ },
-/* 4 */
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-
-	let {
 	    createElement, createSvgElement, parseArgs, nodeGener
-	} = __webpack_require__(5);
+	} = __webpack_require__(4);
 
 	let {
 	    bindEvents
-	} = __webpack_require__(12);
+	} = __webpack_require__(11);
 
 	// TODO general proxy n way
 
@@ -370,6 +231,7 @@
 	            attrMap, eventMap
 	        } = splitAttribues(attributes);
 
+	        // TODO delay node gen operations
 	        let node = nodeGen(tagName, attrMap, childs);
 
 	        // tmp solution
@@ -424,23 +286,23 @@
 
 
 /***/ },
-/* 5 */
+/* 4 */
 /***/ function(module, exports, __webpack_require__) {
 
-	module.exports = __webpack_require__(6);
+	module.exports = __webpack_require__(5);
 
 
 /***/ },
-/* 6 */
+/* 5 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
 	let {
 	    isString, isObject, isNode, likeArray, isNumber, isBool
-	} = __webpack_require__(7);
+	} = __webpack_require__(6);
 
-	let parseAttribute = __webpack_require__(8);
+	let parseAttribute = __webpack_require__(7);
 
 	const svgNS = 'http://www.w3.org/2000/svg';
 
@@ -566,7 +428,7 @@
 
 
 /***/ },
-/* 7 */
+/* 6 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -791,18 +653,18 @@
 
 
 /***/ },
-/* 8 */
+/* 7 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
 	let {
 	    isString, isObject
-	} = __webpack_require__(7);
+	} = __webpack_require__(6);
 
 	let {
 	    mergeMap
-	} = __webpack_require__(9);
+	} = __webpack_require__(8);
 
 	const ITEM_REG = /([\w-]+)\s*=\s*(([\w-]+)|('.*?')|(".*?"))/;
 
@@ -902,20 +764,20 @@
 
 
 /***/ },
-/* 9 */
+/* 8 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
 	let {
 	    isObject, funType, or, isString, isFalsy, likeArray
-	} = __webpack_require__(7);
+	} = __webpack_require__(6);
 
-	let iterate = __webpack_require__(10);
+	let iterate = __webpack_require__(9);
 
 	let {
 	    map, reduce, find, findIndex, forEach, filter, any, exist, compact
-	} = __webpack_require__(11);
+	} = __webpack_require__(10);
 
 	let contain = (list, item, fopts) => findIndex(list, item, fopts) !== -1;
 
@@ -1011,14 +873,14 @@
 
 
 /***/ },
-/* 10 */
+/* 9 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
 	let {
 	    likeArray, isObject, funType, isFunction, isUndefined, or, isNumber, isFalsy, mapType
-	} = __webpack_require__(7);
+	} = __webpack_require__(6);
 
 	/**
 	 *
@@ -1117,12 +979,12 @@
 
 
 /***/ },
-/* 11 */
+/* 10 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
-	let iterate = __webpack_require__(10);
+	let iterate = __webpack_require__(9);
 
 	let defauls = {
 	    eq: (v1, v2) => v1 === v2
@@ -1221,94 +1083,60 @@
 
 
 /***/ },
-/* 12 */
+/* 11 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
-	let EventMatrix = __webpack_require__(13);
+	let EventMatrix = __webpack_require__(12);
 
 	let {
-	    addHandler,
-	    removeTree,
-	    removeNode,
-	    getNodeHandleMap,
+	    listenEventType,
 	    attachDocument
 	} = EventMatrix();
 
 	let bindEvents = (node, eventMap) => {
+	    // hook event at node
+	    node.__eventMap = eventMap;
+
 	    for (let type in eventMap) {
-	        addHandler(type, node, eventMap[type]);
+	        listenEventType(type);
 	    }
-	};
-
-	let clearBelow = removeTree;
-
-	let moveNodeEvent = (target, source) => {
-	    let handleMap = getNodeHandleMap(source);
-	    removeNode(target);
-
-	    for (let type in handleMap) {
-	        let handlers = handleMap[type];
-	        for (let i = 0; i < handlers.length; i++) {
-	            let handler = handlers[i];
-	            addHandler(type, target, handler);
-	        }
-	    }
-
-	    //
-	    removeNode(source);
 	};
 
 	module.exports = {
 	    bindEvents,
-	    clearBelow,
-	    moveNodeEvent,
 	    attachDocument
 	};
 
 
 /***/ },
-/* 13 */
+/* 12 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
 	let {
-	    findIndex, contain, map, forEach
-	} = __webpack_require__(14);
+	    contain
+	} = __webpack_require__(13);
 
 	module.exports = () => {
-	    let matrix = {};
 	    let docs = [];
+	    let eventTypeMap = {};
 
-	    let addHandler = (type, node, handler) => {
-	        let handlerObjs = matrix[type];
-	        if (!handlerObjs) {
+	    let listenEventType = (type) => {
+	        if (!eventTypeMap[type]) {
 	            updateDocs(type);
-	            // add new type
-	            handlerObjs = matrix[type] = [{
-	                node,
-	                handlers: []
-	            }];
 	        }
-
-	        let handlers = getHandlers(type, node);
-	        if (!handlers) {
-	            handlers = [];
-	            matrix[type].push({
-	                node,
-	                handlers
-	            });
-	        }
-	        if (!contain(handlers, handler)) {
-	            handlers.push(handler);
-	        }
+	        eventTypeMap[type] = true;
 	    };
 
+	    /**
+	     * attach document used to accept events
+	     */
 	    let attachDocument = (doc = document) => {
 	        if (!contain(docs, doc)) {
-	            for (let type in matrix) {
+	            for (let type in eventTypeMap) {
 	                doc.addEventListener(type, listener(type));
 	            }
 	            docs.push(doc);
@@ -1325,106 +1153,48 @@
 	        }
 	    };
 
-	    let getNodeHandleMap = (item) => {
-	        let map = {};
-	        for (let type in matrix) {
-	            let handlers = getHandlers(type, item);
-	            if (handlers) map[type] = handlers;
-	        }
-	        return map;
-	    };
-
-	    let removeHandler = (type, node, handler) => {
-	        let handlers = getHandlers(type, node);
-	        if (handlers && handler.length) {
-	            let index = findIndex(handlers, handler);
-	            if (index !== -1) {
-	                handlers.splice(index, 1);
-	            }
-	        }
-	    };
-
-	    let removeTree = (item) => {
-	        for (let type in matrix) {
-	            let handlerObjs = matrix[type];
-	            for (let i = 0; i < handlerObjs.length; i++) {
-	                let {
-	                    node
-	                } = handlerObjs[i];
-	                if (below(node, item)) {
-	                    // remove i
-	                    handlerObjs.splice(i, 1);
-	                    i = i - 1;
-	                }
-	            }
-	        }
-	    };
-
-	    let removeNode = (item) => {
-	        for (let type in matrix) {
-	            let handlerObjs = matrix[type];
-	            for (let i = 0; i < handlerObjs.length; i++) {
-	                let {
-	                    node
-	                } = handlerObjs[i];
-	                if (node === item) {
-	                    // remove node
-	                    handlerObjs.splice(i, 1);
-	                    break;
-	                }
-	            }
-	        }
-	    };
-
 	    let listener = (type) => function(e) {
+	        let ctx = this;
 	        let target = e.target;
-	        let nodePath = getNodePath(target);
 
+	        // hack the stopPropagration function
 	        let oldProp = e.stopPropagation;
-	        e.stopPropagation = function() {
+	        e.stopPropagation = function(...args) {
 	            e.__stopPropagation = true;
-	            oldProp.apply(this, arguments);
+	            return oldProp.apply(this, args);
 	        };
 
-	        let handlersList = map(nodePath, (curNode) => getHandlers(type, curNode));
-	        forEach(handlersList, (handlers) => {
-	            if (handlers && handlers.length) {
-	                for (let j = 0; j < handlers.length; j++) {
-	                    if (e.__stopPropagation) {
-	                        return true;
-	                    }
+	        let nodePath = getNodePath(target);
 
-	                    let handler = handlers[j];
-	                    handler.apply(this, [e]);
-	                }
-	            }
-	        });
+	        for (let i = 0; i < nodePath.length; i++) {
+	            let node = nodePath[i];
+	            applyNodeHandlers(e, type, node, ctx);
+	        }
 	    };
 
-	    let getHandlers = (type, target) => {
-	        let handlerObjs = matrix[type];
-	        for (let i = 0; i < handlerObjs.length; i++) {
-	            let {
-	                node, handlers
-	            } = handlerObjs[i];
-	            if (node === target) {
-	                return handlers;
-	            }
+	    let applyNodeHandlers = (e, type, node, ctx) => {
+	        if (e.__stopPropagation) { // event already been stoped by child node
+	            return true;
 	        }
 
-	        return null;
+	        let handler = getHandler(type, node);
+	        return handler && handler.apply(ctx, [e]);
+	    };
+
+	    let getHandler = (type, target) => {
+	        let eventMap = target && target.__eventMap;
+	        return eventMap && eventMap[type];
 	    };
 
 	    return {
-	        addHandler,
-	        removeHandler,
-	        removeTree,
-	        removeNode,
-	        getNodeHandleMap,
+	        listenEventType,
 	        attachDocument
 	    };
 	};
 
+	/**
+	 * get the path of node
+	 */
 	let getNodePath = (target) => {
 	    let paths = [];
 	    while (target) {
@@ -1434,31 +1204,22 @@
 	    return paths;
 	};
 
-	let below = (node, ancestor) => {
-	    while (node) {
-	        if (node === ancestor) {
-	            return true;
-	        }
-	        node = node.parentNode;
-	    }
-	};
-
 
 /***/ },
-/* 14 */
+/* 13 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
 	let {
 	    isObject, funType, or, isString, isFalsy, likeArray
-	} = __webpack_require__(7);
+	} = __webpack_require__(6);
 
-	let iterate = __webpack_require__(15);
+	let iterate = __webpack_require__(14);
 
 	let {
 	    map, reduce, find, findIndex, forEach, filter, any, exist, compact
-	} = __webpack_require__(16);
+	} = __webpack_require__(15);
 
 	let contain = (list, item, fopts) => findIndex(list, item, fopts) !== -1;
 
@@ -1554,14 +1315,14 @@
 
 
 /***/ },
-/* 15 */
+/* 14 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
 	let {
 	    likeArray, isObject, funType, isFunction, isUndefined, or, isNumber, isFalsy, mapType
-	} = __webpack_require__(7);
+	} = __webpack_require__(6);
 
 	/**
 	 *
@@ -1660,12 +1421,12 @@
 
 
 /***/ },
-/* 16 */
+/* 15 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
-	let iterate = __webpack_require__(15);
+	let iterate = __webpack_require__(14);
 
 	let defauls = {
 	    eq: (v1, v2) => v1 === v2
@@ -1764,13 +1525,13 @@
 
 
 /***/ },
-/* 17 */
+/* 16 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
-	let twowaybinding = __webpack_require__(18);
-	let eventError = __webpack_require__(20);
+	let twowaybinding = __webpack_require__(17);
+	let eventError = __webpack_require__(19);
 
 	module.exports = {
 	    twowaybinding,
@@ -1779,14 +1540,14 @@
 
 
 /***/ },
-/* 18 */
+/* 17 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
 	let {
 	    get, set
-	} = __webpack_require__(19);
+	} = __webpack_require__(18);
 
 	module.exports = (obj, path) => (tagName, attributes, childExp) => {
 	    let value = get(obj, path, '');
@@ -1805,17 +1566,17 @@
 
 
 /***/ },
-/* 19 */
+/* 18 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
 	let {
 	    reduce
-	} = __webpack_require__(14);
+	} = __webpack_require__(13);
 	let {
 	    funType, isObject, or, isString, isFalsy
-	} = __webpack_require__(7);
+	} = __webpack_require__(6);
 
 	let defineProperty = (obj, key, opts) => {
 	    if (Object.defineProperty) {
@@ -1960,7 +1721,7 @@
 
 
 /***/ },
-/* 20 */
+/* 19 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -1991,24 +1752,24 @@
 
 
 /***/ },
-/* 21 */
+/* 20 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
 	let {
 	    set
-	} = __webpack_require__(19);
+	} = __webpack_require__(18);
 
 	let {
 	    isObject, isFunction, likeArray
-	} = __webpack_require__(7);
+	} = __webpack_require__(6);
 
 	let {
 	    forEach
-	} = __webpack_require__(14);
+	} = __webpack_require__(13);
 
-	let replace = __webpack_require__(22);
+	let replace = __webpack_require__(21);
 
 	/**
 	 * render function: (data) => node
@@ -2145,7 +1906,7 @@
 	        }
 	    };
 
-	    let initData = (obj) => {
+	    let initData = (obj = {}) => {
 	        data = generateData(obj, ctx);
 	        return data;
 	    };
@@ -2196,34 +1957,28 @@
 
 
 /***/ },
-/* 22 */
+/* 21 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
 	let {
-	    moveNodeEvent, clearBelow
-	} = __webpack_require__(12);
-
-	let {
 	    toArray
-	} = __webpack_require__(19);
+	} = __webpack_require__(18);
 
 	let {
 	    isNode
-	} = __webpack_require__(7);
+	} = __webpack_require__(6);
 
 	let {
 	    forEach
-	} = __webpack_require__(14);
+	} = __webpack_require__(13);
 
-	let applyAttibutes = __webpack_require__(23);
+	let applyAttibutes = __webpack_require__(22);
 
 	let replaceDirectly = (node, newNode) => {
 	    let parent = node.parentNode;
 	    if (parent) {
-	        // clear node's events
-	        clearBelow(node);
 	        // replace
 	        parent.replaceChild(newNode, node);
 	        return newNode;
@@ -2235,7 +1990,6 @@
 	let removeOldNode = (oldNode) => {
 	    let parent = oldNode.parentNode;
 	    if (parent) {
-	        clearBelow(oldNode);
 	        parent.removeChild(oldNode);
 	    }
 	};
@@ -2272,8 +2026,6 @@
 	let editNode = (node, newNode) => {
 	    // attributes
 	    applyAttibutes(node, newNode);
-	    // events
-	    moveNodeEvent(node, newNode);
 	    // transfer context
 	    if (newNode.ctx) {
 	        newNode.ctx.transferCtx(node);
@@ -2329,22 +2081,22 @@
 
 
 /***/ },
-/* 23 */
+/* 22 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
 	let {
 	    getAttributeMap
-	} = __webpack_require__(24);
+	} = __webpack_require__(23);
 
 	let {
 	    hasOwnProperty
-	} = __webpack_require__(19);
+	} = __webpack_require__(18);
 
 	let {
 	    forEach
-	} = __webpack_require__(14);
+	} = __webpack_require__(13);
 
 	let applyAttibutes = (node, newNode) => {
 	    // attributes
@@ -2375,14 +2127,14 @@
 
 
 /***/ },
-/* 24 */
+/* 23 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
-	let shadowFrame = __webpack_require__(25);
+	let shadowFrame = __webpack_require__(24);
 
-	let startMomenter = __webpack_require__(26);
+	let startMomenter = __webpack_require__(25);
 
 	let getX = (elem) => {
 	    var x = 0;
@@ -2465,7 +2217,7 @@
 
 
 /***/ },
-/* 25 */
+/* 24 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -2519,7 +2271,7 @@
 
 
 /***/ },
-/* 26 */
+/* 25 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -2574,30 +2326,36 @@
 
 
 /***/ },
-/* 27 */
+/* 26 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
 	let {
 	    attachDocument
-	} = __webpack_require__(12);
+	} = __webpack_require__(11);
 
 	let {
 	    isNode
-	} = __webpack_require__(7);
+	} = __webpack_require__(6);
 
 	let {
 	    flat, forEach
-	} = __webpack_require__(14);
+	} = __webpack_require__(13);
 
-	module.exports = (rootNode, parentNode) => {
-	    rootNode = flat(rootNode);
-	    forEach(rootNode, (item) => {
+	/**
+	 * @param parentNode
+	 *      the dom node used hook node we rendered
+	 */
+	module.exports = (kabaneryRoots, parentNode) => {
+	    kabaneryRoots = flat(kabaneryRoots);
+	    forEach(kabaneryRoots, (item) => {
 	        if (isNode(item)) {
 	            parentNode.appendChild(item);
 	        }
 	    });
+
+	    // attach to document
 	    attachDocument(getDoc(parentNode));
 	};
 
@@ -2610,20 +2368,286 @@
 
 
 /***/ },
+/* 27 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	let {
+	    n
+	} = __webpack_require__(3);
+
+	let {
+	    isArray, isFunction, isObject
+	} = __webpack_require__(6);
+
+	let {
+	    map
+	} = __webpack_require__(13);
+
+	module.exports = (...args) => {
+	    let tagName = args[0],
+	        attrs = {},
+	        childs = [];
+	    if (isArray(args[1])) {
+	        childs = args[1];
+	    } else if (isFunction(args[1])) {
+	        childs = [args[1]];
+	    } else {
+	        if (isObject(args[1])) {
+	            attrs = args[1];
+	            if (isArray(args[2])) {
+	                childs = args[2];
+	            } else if (isFunction(args[2])) {
+	                childs = [args[2]];
+	            }
+	        }
+	    }
+
+	    return (...params) => {
+	        let renderList = (list) => {
+	            return map(list, (viewer) => {
+	                if (isArray(viewer)) {
+	                    return renderList(viewer);
+	                } else if (isFunction(viewer)) {
+	                    return viewer(...params);
+	                } else {
+	                    return viewer;
+	                }
+	            });
+	        };
+
+	        return n(tagName, attrs, renderList(childs));
+	    };
+	};
+
+
+/***/ },
 /* 28 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
 	let {
-	    isObject, funType, or, isString, isFalsy, likeArray
-	} = __webpack_require__(7);
+	    view, n
+	} = __webpack_require__(1);
 
-	let iterate = __webpack_require__(29);
+	let {
+	    map, compact, mergeMap
+	} = __webpack_require__(29);
+
+	let {
+	    isObject
+	} = __webpack_require__(6);
+
+	let {
+	    getWindowWidth, getWindowHeight
+	} = __webpack_require__(32);
+
+	let {
+	    hasOwnProperty
+	} = __webpack_require__(35);
+
+	let idgener = __webpack_require__(39);
+
+	let triangle = __webpack_require__(41);
+
+	/**
+	 * @param data Object
+	 *  data is a normal js object without circle
+	 */
+
+	let renderMap = view(({
+	    data,
+	    hidden,
+	    onselected,
+	    targetPosition,
+	    maxShowItemNum = 10, selectedPath = '', parentPath = '', nameMap = {}
+	}, {
+	    update
+	}) => {
+	    let selectedName = selectedPath.split('.')[0];
+	    let restPath = selectedPath.substring(selectedName.length + 1);
+	    let itemWidth = 164,
+	        itemHeight = 16;
+	    if (hidden) return null;
+
+	    let expandedItem = (item, name) => {
+	        let left = 0,
+	            top = 0,
+	            windowWidth = getWindowWidth(),
+	            windowHeight = getWindowHeight();
+
+	        if (targetPosition) {
+	            left = targetPosition.left - left + itemWidth;
+	            top = targetPosition.top + top;
+	            if (targetPosition.right + itemWidth > windowWidth) {
+	                // show in left
+	                left = left - 2 * itemWidth;
+
+	                if (targetPosition.left - itemWidth < 0) {
+	                    left = targetPosition.left + 10;
+	                }
+	            }
+	            let h = itemHeight * Object.keys(item).length;
+	            if (targetPosition.bottom + h > windowHeight) {
+	                // show in top
+	                top = Math.max(top - h, 10);
+	            }
+	        }
+
+	        return n('div', {
+	            style: {
+	                position: targetPosition ? 'fixed' : 'relative',
+	                left,
+	                top,
+	                zIndex: 1000
+	            }
+	        }, renderMap({
+	            data: item,
+	            selectedPath: restPath,
+	            onselected,
+	            parentPath: getPath(name, parentPath),
+	            nameMap
+	        }));
+	    };
+
+	    return n('ul', {
+	        style: {
+	            width: itemWidth,
+	            maxHeight: maxShowItemNum * itemHeight,
+	            overflow: 'scroll',
+	            'display': 'inline-block',
+	            'margin': 0,
+	            'padding': '3 0',
+	            border: '1px solid rgba(80, 80, 80, 0.3)',
+	            borderRadius: 4,
+	            boxShadow: '0px 0px 2px #888888',
+	            backgroundColor: 'rgba(244, 244, 244, 0.95)'
+	        }
+	    }, map(data, (item, name) => {
+	        return n('li', {
+	            style: {
+	                position: 'relative',
+	                listStyle: 'none',
+	                cursor: 'pointer',
+	                minWidth: 100,
+	                padding: '5 10',
+	                backgroundColor: name === selectedName ? '#3879d9' : 'none',
+	                color: name === selectedName ? 'white' : 'black'
+	            },
+
+	            'class': SELECT_ITEM_HOVER_CLASS,
+
+	            onclick: () => {
+	                update('hidden', true);
+	            }
+	        }, [
+	            n('div', {
+	                style: {
+	                    height: 16,
+	                    lineHeight: 16
+	                }
+	            }, [
+	                n('div', {
+	                    style: {
+	                        'float': 'left',
+	                        position: 'relative',
+	                        width: '95%',
+	                        textOverflow: 'ellipsis',
+	                        overflow: 'hidden'
+	                    }
+	                }, [
+	                    n('span', hasOwnProperty(nameMap, getPath(name, parentPath)) ? nameMap[getPath(name, parentPath)] : name)
+	                ]),
+
+	                isObject(item) && [
+	                    n('div', {
+	                        style: {
+	                            'float': 'right',
+	                            position: 'relative',
+	                            width: '5%',
+	                            height: itemHeight
+	                        }
+	                    }, [
+	                        n('div', {
+	                            style: mergeMap({
+	                                position: 'relative',
+	                                top: (itemHeight - 10) / 2
+	                            }, triangle({
+	                                direction: 'right',
+	                                top: 5,
+	                                bottom: 5,
+	                                left: 10
+	                            }))
+	                        }),
+	                        name === selectedName && expandedItem(item, name),
+	                    ])
+	                ],
+	                n('div', {
+	                    style: {
+	                        clear: 'both'
+	                    }
+	                })
+	            ]),
+
+	            n('div', {
+	                style: {
+	                    position: 'absolute',
+	                    width: '100%',
+	                    height: '100%',
+	                    left: 0,
+	                    top: 0
+	                },
+
+	                onclick: (e) => {
+	                    if (isObject(item)) {
+	                        e.stopPropagation();
+	                        // expand it
+	                        update([
+	                            ['selectedPath', name === selectedName ? '' : name],
+	                            ['targetPosition', e.target.getBoundingClientRect()]
+	                        ]);
+	                    } else {
+	                        onselected && onselected(item, getPath(name, parentPath));
+	                        update('hidden', true);
+	                    }
+	                }
+	            })
+	        ]);
+	    }));
+	});
+
+	let getPath = (name, parentPath) => {
+	    return compact([parentPath, name]).join('.');
+	};
+
+	const SELECT_ITEM_HOVER_CLASS = 'select-item-' + idgener().replace(/\./g, '-');
+
+	module.exports = (data) => {
+	    document.getElementsByTagName('head')[0].appendChild(n('style', {
+	        type: 'text/css'
+	    }, `.${SELECT_ITEM_HOVER_CLASS}:hover{background-color: #118bfb}`));
+
+	    return renderMap(data);
+	};
+
+
+/***/ },
+/* 29 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	let {
+	    isObject, funType, or, isString, isFalsy, likeArray
+	} = __webpack_require__(6);
+
+	let iterate = __webpack_require__(30);
 
 	let {
 	    map, reduce, find, findIndex, forEach, filter, any, exist, compact, reverse
-	} = __webpack_require__(30);
+	} = __webpack_require__(31);
 
 	let contain = (list, item, fopts) => findIndex(list, item, fopts) !== -1;
 
@@ -2720,14 +2744,14 @@
 
 
 /***/ },
-/* 29 */
+/* 30 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
 	let {
 	    isPromise, likeArray, isObject, funType, isFunction, isUndefined, or, isNumber, isFalsy, isReadableStream, mapType
-	} = __webpack_require__(7);
+	} = __webpack_require__(6);
 
 	/**
 	 * @param opts
@@ -2865,16 +2889,16 @@
 
 
 /***/ },
-/* 30 */
+/* 31 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
 	let {
 	    iterate
-	} = __webpack_require__(29);
+	} = __webpack_require__(30);
 
-	let {isFunction} = __webpack_require__(7);
+	let {isFunction} = __webpack_require__(6);
 
 	let defauls = {
 	    eq: (v1, v2) => v1 === v2
@@ -2979,14 +3003,14 @@
 
 
 /***/ },
-/* 31 */
+/* 32 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
-	let shadowFrame = __webpack_require__(32);
+	let shadowFrame = __webpack_require__(33);
 
-	let startMomenter = __webpack_require__(33);
+	let startMomenter = __webpack_require__(34);
 
 	let getX = (elem) => {
 	    var x = 0;
@@ -3083,7 +3107,7 @@
 
 
 /***/ },
-/* 32 */
+/* 33 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -3137,7 +3161,7 @@
 
 
 /***/ },
-/* 33 */
+/* 34 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -3188,17 +3212,17 @@
 
 
 /***/ },
-/* 34 */
+/* 35 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
 	let {
 	    reduce
-	} = __webpack_require__(35);
+	} = __webpack_require__(36);
 	let {
 	    funType, isObject, or, isString, isFalsy
-	} = __webpack_require__(7);
+	} = __webpack_require__(6);
 
 	let defineProperty = (obj, key, opts) => {
 	    if (Object.defineProperty) {
@@ -3351,20 +3375,20 @@
 
 
 /***/ },
-/* 35 */
+/* 36 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
 	let {
 	    isObject, funType, or, isString, isFalsy, likeArray
-	} = __webpack_require__(7);
+	} = __webpack_require__(6);
 
-	let iterate = __webpack_require__(36);
+	let iterate = __webpack_require__(37);
 
 	let {
 	    map, reduce, find, findIndex, forEach, filter, any, exist, compact
-	} = __webpack_require__(37);
+	} = __webpack_require__(38);
 
 	let contain = (list, item, fopts) => findIndex(list, item, fopts) !== -1;
 
@@ -3460,14 +3484,14 @@
 
 
 /***/ },
-/* 36 */
+/* 37 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
 	let {
 	    likeArray, isObject, funType, isFunction, isUndefined, or, isNumber, isFalsy, mapType
-	} = __webpack_require__(7);
+	} = __webpack_require__(6);
 
 	/**
 	 *
@@ -3566,12 +3590,12 @@
 
 
 /***/ },
-/* 37 */
+/* 38 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
-	let iterate = __webpack_require__(36);
+	let iterate = __webpack_require__(37);
 
 	let defauls = {
 	    eq: (v1, v2) => v1 === v2
@@ -3670,14 +3694,14 @@
 
 
 /***/ },
-/* 38 */
+/* 39 */
 /***/ function(module, exports, __webpack_require__) {
 
-	module.exports = __webpack_require__(39);
+	module.exports = __webpack_require__(40);
 
 
 /***/ },
-/* 39 */
+/* 40 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -3727,7 +3751,7 @@
 
 
 /***/ },
-/* 40 */
+/* 41 */
 /***/ function(module, exports) {
 
 	'use strict';

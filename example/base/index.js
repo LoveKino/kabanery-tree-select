@@ -1,5 +1,7 @@
 'use strict';
 
+let {mount} = require('kabanery');
+
 let TreeSelect = require('../../index.js');
 
 let treeSelect = TreeSelect({
@@ -47,4 +49,4 @@ let treeSelect = TreeSelect({
     }
 });
 
-document.body.appendChild(treeSelect);
+mount(treeSelect, document.body);
