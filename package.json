@@ -28,7 +28,7 @@
     "doming": "0.0.3",
     "idgener": "0.0.2",
     "jsenhance": "0.0.3",
-    "kabanery": "^0.1.10"
+    "kabanery": "^0.1.11"
   },
   "devDependencies": {
     "webpack": "^1.14.0"
