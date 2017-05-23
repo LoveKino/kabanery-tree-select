@@ -173,12 +173,12 @@
 	'use strict';
 
 	let {
-	    n, svgn, bindPlugs
+	    n, svgn, bindPlugs, toHTML, reduceNode
 	} = __webpack_require__(3);
 
 	let {
 	    parseArgs
-	} = __webpack_require__(4);
+	} = __webpack_require__(10);
 
 	let plugs = __webpack_require__(16);
 
@@ -196,6 +196,8 @@
 	    plugs,
 	    bindPlugs,
 	    mount,
+	    toHTML,
+	    reduceNode,
 
 	    parseArgs
 	};
@@ -208,17 +210,23 @@
 	'use strict';
 
 	let {
-	    createElement, createSvgElement, parseArgs, nodeGener
-	} = __webpack_require__(4);
-
-	let {
 	    bindEvents
-	} = __webpack_require__(11);
+	} = __webpack_require__(4);
+	let {
+	    map
+	} = __webpack_require__(6);
+	let {
+	    isObject, isNode
+	} = __webpack_require__(7);
+	let {
+	    createElement, createSvgElement, nodeGener, parseArgs
+	} = __webpack_require__(10);
+
+	const KABANERY_NODE = 'kabanery_node';
 
 	// TODO general proxy n way
 
-	let cn = (create) => {
-	    let nodeGen = nodeGener(create);
+	let cn = (elementType) => {
 	    return (...args) => {
 	        let {
 	            tagName, attributes, childs
@@ -231,15 +239,17 @@
 	            attrMap, eventMap
 	        } = splitAttribues(attributes);
 
-	        // TODO delay node gen operations
-	        let node = nodeGen(tagName, attrMap, childs);
-
-	        // tmp solution
-	        bindEvents(node, eventMap);
-
-	        return node;
+	        return {
+	            tagName,
+	            attrMap,
+	            eventMap,
+	            elementType,
+	            type: KABANERY_NODE, childNodes: childs,
+	        };
 	    };
 	};
+
+	let isKabaneryNode = (v) => isObject(v) && v.type === KABANERY_NODE;
 
 	let bindPlugs = (typen, plugs = []) => (...args) => {
 	    let {
@@ -278,10 +288,46 @@
 	    };
 	};
 
+	let reduceNode = (node) => {
+	    if (isKabaneryNode(node)) {
+	        let nodeGen = null;
+	        if (node.elementType === 'html') {
+	            nodeGen = nodeGener(createElement);
+	        } else {
+	            nodeGen = nodeGener(createSvgElement);
+	        }
+
+	        let tarNode = nodeGen(node.tagName, node.attrMap, map(node.childNodes, reduceNode));
+	        bindEvents(tarNode, node.eventMap);
+
+	        return tarNode;
+	    } else {
+	        return node;
+	    }
+	};
+
+	let toHTML = (node) => {
+	    if (isNode(node)) {
+	        return node.outerHTML;
+	    } else if (isKabaneryNode(node)) {
+	        let {
+	            tagName, attrMap, childNodes
+	        } = node;
+	        let attrStr = map(attrMap, (value, key) => `${key}="${value}"`).join(' ');
+	        attrStr = attrStr ? ' ' + attrStr : '';
+	        return `<${tagName}${attrStr}>${map(childNodes, toHTML).join('')}</${tagName}>`;
+	    } else {
+	        return node + '';
+	    }
+	};
+
 	module.exports = {
-	    n: cn(createElement),
-	    svgn: cn(createSvgElement),
-	    bindPlugs
+	    n: cn('html'),
+	    svgn: cn('svg'),
+	    bindPlugs,
+	    isKabaneryNode,
+	    reduceNode,
+	    toHTML
 	};
 
 
@@ -289,7 +335,28 @@
 /* 4 */
 /***/ function(module, exports, __webpack_require__) {
 
-	module.exports = __webpack_require__(5);
+	'use strict';
+
+	let EventMatrix = __webpack_require__(5);
+
+	let {
+	    listenEventType,
+	    attachDocument
+	} = EventMatrix();
+
+	let bindEvents = (node, eventMap) => {
+	    // hook event at node
+	    node.__eventMap = eventMap;
+
+	    for (let type in eventMap) {
+	        listenEventType(type);
+	    }
+	};
+
+	module.exports = {
+	    bindEvents,
+	    attachDocument
+	};
 
 
 /***/ },
@@ -299,136 +366,212 @@
 	'use strict';
 
 	let {
-	    isString, isObject, isNode, likeArray, isNumber, isBool
+	    contain
 	} = __webpack_require__(6);
 
-	let parseAttribute = __webpack_require__(7);
+	module.exports = () => {
+	    let docs = [];
+	    let eventTypeMap = {};
 
-	const svgNS = 'http://www.w3.org/2000/svg';
-
-	let cn = (create) => {
-	    let nodeGen = nodeGener(create);
-	    return (...args) => {
-	        let {
-	            tagName, attributes, childs
-	        } = parseArgs(args);
-	        return nodeGen(tagName, attributes, childs);
+	    let listenEventType = (type) => {
+	        if (!eventTypeMap[type]) {
+	            updateDocs(type);
+	        }
+	        eventTypeMap[type] = true;
 	    };
-	};
 
-	let nodeGener = (create) => (tagName, attributes, childs) => {
-	    let node = create(tagName);
-	    applyNode(node, attributes, childs);
+	    /**
+	     * attach document used to accept events
+	     */
+	    let attachDocument = (doc = document) => {
+	        if (!contain(docs, doc)) {
+	            for (let type in eventTypeMap) {
+	                // prevent multiple version of kabanery to binding multiple times
+	                let id = getGlobalEventTypeId(type);
+	                if (!doc[id]) {
+	                    doc.addEventListener(type, listener(type));
+	                    doc[id] = true;
+	                }
+	            }
+	            docs.push(doc);
+	        }
+	    };
 
-	    return node;
-	};
+	    let updateDocs = (type) => {
+	        if (!docs.length) {
+	            docs.push(document);
+	        }
+	        for (let i = 0; i < docs.length; i++) {
+	            let doc = docs[i];
+	            doc.addEventListener(type, listener(type));
+	        }
+	    };
 
-	let parseArgs = (args) => {
-	    let tagName,
-	        attributes = {},
-	        childExp = [];
+	    let listener = (type) => function(e) {
+	        let ctx = this;
+	        let target = e.target;
 
-	    let first = args.shift();
+	        // hack the stopPropagration function
+	        let oldProp = e.stopPropagation;
+	        e.stopPropagation = function(...args) {
+	            e.__stopPropagation = true;
+	            return oldProp.apply(this, args);
+	        };
 
-	    let parts = splitTagNameAttribute(first);
+	        let nodePath = getNodePath(target);
 
-	    if (parts.length > 1) { // not only tagName
-	        tagName = parts[0];
-	        attributes = parts[1];
-	    } else {
-	        tagName = first;
-	    }
+	        for (let i = 0; i < nodePath.length; i++) {
+	            let node = nodePath[i];
+	            applyNodeHandlers(e, type, node, ctx);
+	        }
+	    };
 
-	    tagName = tagName.toLowerCase().trim();
+	    let applyNodeHandlers = (e, type, node, ctx) => {
+	        if (e.__stopPropagation) { // event already been stoped by child node
+	            return true;
+	        }
 
-	    let next = args.shift();
+	        let handler = getHandler(type, node);
+	        return handler && handler.apply(ctx, [e]);
+	    };
 
-	    let nextAttr = {};
-
-	    if (likeArray(next) ||
-	        isString(next) ||
-	        isNode(next) ||
-	        isNumber(next) ||
-	        isBool(next)) {
-	        childExp = next;
-	    } else if (isObject(next)) {
-	        nextAttr = next;
-	        childExp = args.shift() || [];
-	    }
-
-	    attributes = parseAttribute(attributes, nextAttr);
-
-	    let childs = parseChildExp(childExp);
+	    let getHandler = (type, target) => {
+	        let eventMap = target && target.__eventMap;
+	        return eventMap && eventMap[type];
+	    };
 
 	    return {
-	        tagName,
-	        attributes,
-	        childs
+	        listenEventType,
+	        attachDocument
 	    };
 	};
 
-	let splitTagNameAttribute = (str = '') => {
-	    let tagName = str.split(' ')[0];
-	    let attr = str.substring(tagName.length);
-	    attr = attr && attr.trim();
-	    if (attr) {
-	        return [tagName, attr];
-	    } else {
-	        return [tagName];
+	/**
+	 * get the path of node
+	 */
+	let getNodePath = (target) => {
+	    let paths = [];
+	    while (target) {
+	        paths.push(target);
+	        target = target.parentNode;
 	    }
+	    return paths;
 	};
 
-	let applyNode = (node, attributes, childs) => {
-	    setAttributes(node, attributes);
-	    for (let i = 0; i < childs.length; i++) {
-	        let child = childs[i];
-	        if (isString(child)) {
-	            node.textContent = child;
-	        } else {
-	            node.appendChild(child);
-	        }
-	    }
-	};
-
-	let setAttributes = (node, attributes) => {
-	    for (let name in attributes) {
-	        let attr = attributes[name];
-	        node.setAttribute(name, attr);
-	    }
-	};
-
-	let parseChildExp = (childExp) => {
-	    let ret = [];
-	    if (isNode(childExp)) {
-	        ret.push(childExp);
-	    } else if (likeArray(childExp)) {
-	        for (let i = 0; i < childExp.length; i++) {
-	            let child = childExp[i];
-	            ret = ret.concat(parseChildExp(child));
-	        }
-	    } else if (childExp) {
-	        ret.push(childExp.toString());
-	    }
-	    return ret;
-	};
-
-	let createElement = (tagName) => document.createElement(tagName);
-
-	let createSvgElement = (tagName) => document.createElementNS(svgNS, tagName);
-
-	module.exports = {
-	    svgn: cn(createSvgElement),
-	    n: cn(createElement),
-	    parseArgs,
-	    nodeGener,
-	    createElement,
-	    createSvgElement,
-	    cn
-	};
+	let getGlobalEventTypeId = (type) => `__event_type_id_${type}`;
 
 
 /***/ },
 /* 6 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	let {
+	    isObject, funType, or, isString, isFalsy, likeArray
+	} = __webpack_require__(7);
+
+	let iterate = __webpack_require__(8);
+
+	let {
+	    map, reduce, find, findIndex, forEach, filter, any, exist, compact
+	} = __webpack_require__(9);
+
+	let contain = (list, item, fopts) => findIndex(list, item, fopts) !== -1;
+
+	let difference = (list1, list2, fopts) => {
+	    return reduce(list1, (prev, item) => {
+	        if (!contain(list2, item, fopts) &&
+	            !contain(prev, item, fopts)) {
+	            prev.push(item);
+	        }
+	        return prev;
+	    }, []);
+	};
+
+	let union = (list1, list2, fopts) => deRepeat(list2, fopts, deRepeat(list1, fopts));
+
+	let mergeMap = (map1 = {}, map2 = {}) => reduce(map2, setValueKey, reduce(map1, setValueKey, {}));
+
+	let setValueKey = (obj, value, key) => {
+	    obj[key] = value;
+	    return obj;
+	};
+
+	let interset = (list1, list2, fopts) => {
+	    return reduce(list1, (prev, cur) => {
+	        if (contain(list2, cur, fopts)) {
+	            prev.push(cur);
+	        }
+	        return prev;
+	    }, []);
+	};
+
+	let deRepeat = (list, fopts, init = []) => {
+	    return reduce(list, (prev, cur) => {
+	        if (!contain(prev, cur, fopts)) {
+	            prev.push(cur);
+	        }
+	        return prev;
+	    }, init);
+	};
+
+	/**
+	 * a.b.c
+	 */
+	let get = funType((sandbox, name = '') => {
+	    name = name.trim();
+	    let parts = !name ? [] : name.split('.');
+	    return reduce(parts, getValue, sandbox, invertLogic);
+	}, [
+	    isObject,
+	    or(isString, isFalsy)
+	]);
+
+	let getValue = (obj, key) => obj[key];
+
+	let invertLogic = v => !v;
+
+	let delay = (time) => new Promise((resolve) => {
+	    setTimeout(resolve, time);
+	});
+
+	let flat = (list) => {
+	    if (likeArray(list) && !isString(list)) {
+	        return reduce(list, (prev, item) => {
+	            prev = prev.concat(flat(item));
+	            return prev;
+	        }, []);
+	    } else {
+	        return [list];
+	    }
+	};
+
+	module.exports = {
+	    flat,
+	    contain,
+	    difference,
+	    union,
+	    interset,
+	    map,
+	    reduce,
+	    iterate,
+	    find,
+	    findIndex,
+	    deRepeat,
+	    forEach,
+	    filter,
+	    any,
+	    exist,
+	    get,
+	    delay,
+	    mergeMap,
+	    compact
+	};
+
+
+/***/ },
+/* 7 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -653,234 +796,14 @@
 
 
 /***/ },
-/* 7 */
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-
-	let {
-	    isString, isObject
-	} = __webpack_require__(6);
-
-	let {
-	    mergeMap
-	} = __webpack_require__(8);
-
-	const ITEM_REG = /([\w-]+)\s*=\s*(([\w-]+)|('.*?')|(".*?"))/;
-
-	// TODO better key=value grammer
-	// TODO refactor with grammerL: class grammer, id grammer, refer some popular grammer
-	let parseAttribute = (attributes, nextAttr) => {
-	    // key=value key=value
-	    // value='abc' value=true value=123 value="def"
-	    if (isString(attributes)) {
-	        let str = attributes.trim(),
-	            kvs = [];
-
-	        let stop = false;
-	        while (!stop) {
-	            let newstr = str.replace(ITEM_REG, (matchStr, $1, $2) => {
-	                kvs.push([$1, $2]);
-	                return '';
-	            }).trim();
-	            if (newstr === str) {
-	                stop = true;
-	            }
-	            str = newstr;
-	        }
-
-	        attributes = {};
-	        for (let i = 0; i < kvs.length; i++) {
-	            let [key, value] = kvs[i];
-	            if (value[0] === '\'' && value[value.length - 1] === '\'' ||
-	                value[0] === '"' && value[value.length - 1] === '"') {
-	                value = value.substring(1, value.length - 1);
-	            }
-	            attributes[key] = value;
-	        }
-	    }
-	    // merge
-	    attributes = mergeMap(attributes, nextAttr);
-
-	    if (attributes.style) {
-	        attributes.style = getStyleString(attributes.style);
-	    }
-
-	    // TODO presudo
-	    /*
-	    if (attributes.presudo) {
-	        for (let name in attributes.presudo) {
-	            attributes.presudo[name] = getStyleString(attributes.presudo[name]);
-	        }
-	    }
-	   */
-
-	    return attributes;
-	};
-
-	let getStyleString = (attr = '') => {
-	    if (isString(attr)) {
-	        return attr;
-	    }
-
-	    if (!isObject(attr)) {
-	        throw new TypeError(`Expect object for style object, but got ${attr}`);
-	    }
-	    let style = '';
-	    for (let key in attr) {
-	        let value = attr[key];
-	        key = convertStyleKey(key);
-	        value = convertStyleValue(value, key);
-	        style = `${style};${key}: ${value}`;
-	    }
-	    return style;
-	};
-
-	let convertStyleKey = (key) => {
-	    return key.replace(/[A-Z]/, (letter) => {
-	        return `-${letter.toLowerCase()}`;
-	    });
-	};
-
-	let convertStyleValue = (value, key) => {
-	    if (typeof value === 'number' && key !== 'z-index') {
-	        return value + 'px';
-	    }
-	    if (key === 'padding' || key === 'margin') {
-	        let parts = value.split(' ');
-	        for (let i = 0; i < parts.length; i++) {
-	            let part = parts[i];
-	            if (!isNaN(Number(part))) {
-	                parts[i] = part + 'px';
-	            }
-	        }
-
-	        value = parts.join(' ');
-	    }
-	    return value;
-	};
-
-	module.exports = parseAttribute;
-
-
-/***/ },
 /* 8 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
 	let {
-	    isObject, funType, or, isString, isFalsy, likeArray
-	} = __webpack_require__(6);
-
-	let iterate = __webpack_require__(9);
-
-	let {
-	    map, reduce, find, findIndex, forEach, filter, any, exist, compact
-	} = __webpack_require__(10);
-
-	let contain = (list, item, fopts) => findIndex(list, item, fopts) !== -1;
-
-	let difference = (list1, list2, fopts) => {
-	    return reduce(list1, (prev, item) => {
-	        if (!contain(list2, item, fopts) &&
-	            !contain(prev, item, fopts)) {
-	            prev.push(item);
-	        }
-	        return prev;
-	    }, []);
-	};
-
-	let union = (list1, list2, fopts) => deRepeat(list2, fopts, deRepeat(list1, fopts));
-
-	let mergeMap = (map1 = {}, map2 = {}) => reduce(map2, setValueKey, reduce(map1, setValueKey, {}));
-
-	let setValueKey = (obj, value, key) => {
-	    obj[key] = value;
-	    return obj;
-	};
-
-	let interset = (list1, list2, fopts) => {
-	    return reduce(list1, (prev, cur) => {
-	        if (contain(list2, cur, fopts)) {
-	            prev.push(cur);
-	        }
-	        return prev;
-	    }, []);
-	};
-
-	let deRepeat = (list, fopts, init = []) => {
-	    return reduce(list, (prev, cur) => {
-	        if (!contain(prev, cur, fopts)) {
-	            prev.push(cur);
-	        }
-	        return prev;
-	    }, init);
-	};
-
-	/**
-	 * a.b.c
-	 */
-	let get = funType((sandbox, name = '') => {
-	    name = name.trim();
-	    let parts = !name ? [] : name.split('.');
-	    return reduce(parts, getValue, sandbox, invertLogic);
-	}, [
-	    isObject,
-	    or(isString, isFalsy)
-	]);
-
-	let getValue = (obj, key) => obj[key];
-
-	let invertLogic = v => !v;
-
-	let delay = (time) => new Promise((resolve) => {
-	    setTimeout(resolve, time);
-	});
-
-	let flat = (list) => {
-	    if (likeArray(list) && !isString(list)) {
-	        return reduce(list, (prev, item) => {
-	            prev = prev.concat(flat(item));
-	            return prev;
-	        }, []);
-	    } else {
-	        return [list];
-	    }
-	};
-
-	module.exports = {
-	    flat,
-	    contain,
-	    difference,
-	    union,
-	    interset,
-	    map,
-	    reduce,
-	    iterate,
-	    find,
-	    findIndex,
-	    deRepeat,
-	    forEach,
-	    filter,
-	    any,
-	    exist,
-	    get,
-	    delay,
-	    mergeMap,
-	    compact
-	};
-
-
-/***/ },
-/* 9 */
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-
-	let {
 	    likeArray, isObject, funType, isFunction, isUndefined, or, isNumber, isFalsy, mapType
-	} = __webpack_require__(6);
+	} = __webpack_require__(7);
 
 	/**
 	 *
@@ -979,12 +902,12 @@
 
 
 /***/ },
-/* 10 */
+/* 9 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
-	let iterate = __webpack_require__(9);
+	let iterate = __webpack_require__(8);
 
 	let defauls = {
 	    eq: (v1, v2) => v1 === v2
@@ -1083,30 +1006,146 @@
 
 
 /***/ },
+/* 10 */
+/***/ function(module, exports, __webpack_require__) {
+
+	module.exports = __webpack_require__(11);
+
+
+/***/ },
 /* 11 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
-	let EventMatrix = __webpack_require__(12);
-
 	let {
-	    listenEventType,
-	    attachDocument
-	} = EventMatrix();
+	    isString, isObject, isNode, likeArray, isNumber, isBool
+	} = __webpack_require__(7);
 
-	let bindEvents = (node, eventMap) => {
-	    // hook event at node
-	    node.__eventMap = eventMap;
+	let parseAttribute = __webpack_require__(12);
 
-	    for (let type in eventMap) {
-	        listenEventType(type);
+	const svgNS = 'http://www.w3.org/2000/svg';
+
+	let cn = (create) => {
+	    let nodeGen = nodeGener(create);
+	    return (...args) => {
+	        let {
+	            tagName, attributes, childs
+	        } = parseArgs(args);
+	        return nodeGen(tagName, attributes, childs);
+	    };
+	};
+
+	let nodeGener = (create) => (tagName, attributes, childs) => {
+	    let node = create(tagName);
+	    applyNode(node, attributes, childs);
+
+	    return node;
+	};
+
+	let parseArgs = (args) => {
+	    let tagName,
+	        attributes = {},
+	        childExp = [];
+
+	    let first = args.shift();
+
+	    let parts = splitTagNameAttribute(first);
+
+	    if (parts.length > 1) { // not only tagName
+	        tagName = parts[0];
+	        attributes = parts[1];
+	    } else {
+	        tagName = first;
+	    }
+
+	    tagName = tagName.toLowerCase().trim();
+
+	    let next = args.shift();
+
+	    let nextAttr = {};
+
+	    if (likeArray(next) ||
+	        isString(next) ||
+	        isNode(next) ||
+	        isNumber(next) ||
+	        isBool(next)) {
+	        childExp = next;
+	    } else if (isObject(next)) {
+	        nextAttr = next;
+	        childExp = args.shift() || [];
+	    }
+
+	    attributes = parseAttribute(attributes, nextAttr);
+
+	    let childs = parseChildExp(childExp);
+
+	    return {
+	        tagName,
+	        attributes,
+	        childs
+	    };
+	};
+
+	let splitTagNameAttribute = (str = '') => {
+	    let tagName = str.split(' ')[0];
+	    let attr = str.substring(tagName.length);
+	    attr = attr && attr.trim();
+	    if (attr) {
+	        return [tagName, attr];
+	    } else {
+	        return [tagName];
 	    }
 	};
 
+	let applyNode = (node, attributes, childs) => {
+	    setAttributes(node, attributes);
+	    for (let i = 0; i < childs.length; i++) {
+	        let child = childs[i];
+	        if (isNode(child)) {
+	            node.appendChild(child);
+	        } else {
+	            node.textContent = child + '';
+	        }
+	    }
+	};
+
+	let setAttributes = (node, attributes) => {
+	    for (let name in attributes) {
+	        let attr = attributes[name];
+	        node.setAttribute(name, attr);
+	    }
+	};
+
+	let parseChildExp = (childExp) => {
+	    let ret = [];
+	    if (isNode(childExp)) {
+	        ret.push(childExp);
+	    } else if (likeArray(childExp)) {
+	        for (let i = 0; i < childExp.length; i++) {
+	            let child = childExp[i];
+	            ret = ret.concat(parseChildExp(child));
+	        }
+	    } else if (childExp !== null &&
+	        childExp !== undefined &&
+	        childExp !== false) {
+	        ret.push(childExp);
+	    }
+	    return ret;
+	};
+
+	let createElement = (tagName) => document.createElement(tagName);
+
+	let createSvgElement = (tagName) => document.createElementNS(svgNS, tagName);
+
 	module.exports = {
-	    bindEvents,
-	    attachDocument
+	    svgn: cn(createSvgElement),
+	    n: cn(createElement),
+	    parseArgs,
+	    nodeGener,
+	    createElement,
+	    createSvgElement,
+	    cn
 	};
 
 
@@ -1117,92 +1156,108 @@
 	'use strict';
 
 	let {
-	    contain
+	    isString, isObject
+	} = __webpack_require__(7);
+
+	let {
+	    mergeMap
 	} = __webpack_require__(13);
 
-	module.exports = () => {
-	    let docs = [];
-	    let eventTypeMap = {};
+	const ITEM_REG = /([\w-]+)\s*=\s*(([\w-]+)|('.*?')|(".*?"))/;
 
-	    let listenEventType = (type) => {
-	        if (!eventTypeMap[type]) {
-	            updateDocs(type);
-	        }
-	        eventTypeMap[type] = true;
-	    };
+	// TODO better key=value grammer
+	// TODO refactor with grammerL: class grammer, id grammer, refer some popular grammer
+	let parseAttribute = (attributes, nextAttr) => {
+	    // key=value key=value
+	    // value='abc' value=true value=123 value="def"
+	    if (isString(attributes)) {
+	        let str = attributes.trim(),
+	            kvs = [];
 
-	    /**
-	     * attach document used to accept events
-	     */
-	    let attachDocument = (doc = document) => {
-	        if (!contain(docs, doc)) {
-	            for (let type in eventTypeMap) {
-	                doc.addEventListener(type, listener(type));
+	        let stop = false;
+	        while (!stop) {
+	            let newstr = str.replace(ITEM_REG, (matchStr, $1, $2) => {
+	                kvs.push([$1, $2]);
+	                return '';
+	            }).trim();
+	            if (newstr === str) {
+	                stop = true;
 	            }
-	            docs.push(doc);
-	        }
-	    };
-
-	    let updateDocs = (type) => {
-	        if (!docs.length) {
-	            docs.push(document);
-	        }
-	        for (let i = 0; i < docs.length; i++) {
-	            let doc = docs[i];
-	            doc.addEventListener(type, listener(type));
-	        }
-	    };
-
-	    let listener = (type) => function(e) {
-	        let ctx = this;
-	        let target = e.target;
-
-	        // hack the stopPropagration function
-	        let oldProp = e.stopPropagation;
-	        e.stopPropagation = function(...args) {
-	            e.__stopPropagation = true;
-	            return oldProp.apply(this, args);
-	        };
-
-	        let nodePath = getNodePath(target);
-
-	        for (let i = 0; i < nodePath.length; i++) {
-	            let node = nodePath[i];
-	            applyNodeHandlers(e, type, node, ctx);
-	        }
-	    };
-
-	    let applyNodeHandlers = (e, type, node, ctx) => {
-	        if (e.__stopPropagation) { // event already been stoped by child node
-	            return true;
+	            str = newstr;
 	        }
 
-	        let handler = getHandler(type, node);
-	        return handler && handler.apply(ctx, [e]);
-	    };
-
-	    let getHandler = (type, target) => {
-	        let eventMap = target && target.__eventMap;
-	        return eventMap && eventMap[type];
-	    };
-
-	    return {
-	        listenEventType,
-	        attachDocument
-	    };
-	};
-
-	/**
-	 * get the path of node
-	 */
-	let getNodePath = (target) => {
-	    let paths = [];
-	    while (target) {
-	        paths.push(target);
-	        target = target.parentNode;
+	        attributes = {};
+	        for (let i = 0; i < kvs.length; i++) {
+	            let [key, value] = kvs[i];
+	            if (value[0] === '\'' && value[value.length - 1] === '\'' ||
+	                value[0] === '"' && value[value.length - 1] === '"') {
+	                value = value.substring(1, value.length - 1);
+	            }
+	            attributes[key] = value;
+	        }
 	    }
-	    return paths;
+	    // merge
+	    attributes = mergeMap(attributes, nextAttr);
+
+	    if (attributes.style) {
+	        attributes.style = getStyleString(attributes.style);
+	    }
+
+	    // TODO presudo
+	    /*
+	    if (attributes.presudo) {
+	        for (let name in attributes.presudo) {
+	            attributes.presudo[name] = getStyleString(attributes.presudo[name]);
+	        }
+	    }
+	   */
+
+	    return attributes;
 	};
+
+	let getStyleString = (attr = '') => {
+	    if (isString(attr)) {
+	        return attr;
+	    }
+
+	    if (!isObject(attr)) {
+	        throw new TypeError(`Expect object for style object, but got ${attr}`);
+	    }
+	    let styles = [];
+	    for (let key in attr) {
+	        let value = attr[key];
+	        key = convertStyleKey(key);
+	        value = convertStyleValue(value, key);
+	        styles.push(`${key}: ${value}`);
+	    }
+	    return styles.join(';');
+	};
+
+	let convertStyleKey = (key) => {
+	    return key.replace(/[A-Z]/, (letter) => {
+	        return `-${letter.toLowerCase()}`;
+	    });
+	};
+
+	let convertStyleValue = (value, key) => {
+	    if (typeof value === 'number' && key !== 'z-index') {
+	        return value + 'px';
+	    }
+	    if (key === 'padding' || key === 'margin') {
+	        let parts = value.split(' ');
+	        for (let i = 0; i < parts.length; i++) {
+	            let part = parts[i];
+	            if (!isNaN(Number(part))) {
+	                parts[i] = part + 'px';
+	            }
+	        }
+
+	        value = parts.join(' ');
+	    }
+	    return value;
+	};
+
+	module.exports = parseAttribute;
 
 
 /***/ },
@@ -1213,7 +1268,7 @@
 
 	let {
 	    isObject, funType, or, isString, isFalsy, likeArray
-	} = __webpack_require__(6);
+	} = __webpack_require__(7);
 
 	let iterate = __webpack_require__(14);
 
@@ -1322,7 +1377,7 @@
 
 	let {
 	    likeArray, isObject, funType, isFunction, isUndefined, or, isNumber, isFalsy, mapType
-	} = __webpack_require__(6);
+	} = __webpack_require__(7);
 
 	/**
 	 *
@@ -1557,8 +1612,8 @@
 	        childExp.unshift(value);
 	    }
 
-	    if (!attributes.onkeyup) {
-	        attributes.onkeyup = (e) => {
+	    if (!attributes.oninput) {
+	        attributes.oninput = (e) => {
 	            set(obj, path, e.target.value);
 	        };
 	    }
@@ -1573,10 +1628,10 @@
 
 	let {
 	    reduce
-	} = __webpack_require__(13);
+	} = __webpack_require__(6);
 	let {
 	    funType, isObject, or, isString, isFalsy
-	} = __webpack_require__(6);
+	} = __webpack_require__(7);
 
 	let defineProperty = (obj, key, opts) => {
 	    if (Object.defineProperty) {
@@ -1763,13 +1818,17 @@
 
 	let {
 	    isObject, isFunction, likeArray
-	} = __webpack_require__(6);
+	} = __webpack_require__(7);
 
 	let {
 	    forEach
-	} = __webpack_require__(13);
+	} = __webpack_require__(6);
 
 	let replace = __webpack_require__(21);
+
+	let {
+	    reduceNode
+	} = __webpack_require__(3);
 
 	/**
 	 * render function: (data) => node
@@ -1884,6 +1943,7 @@
 
 	    let replaceView = () => {
 	        let newNode = getNewNode();
+	        newNode = reduceNode(newNode);
 
 	        // type check for newNode
 
@@ -1968,11 +2028,11 @@
 
 	let {
 	    isNode
-	} = __webpack_require__(6);
+	} = __webpack_require__(7);
 
 	let {
 	    forEach
-	} = __webpack_require__(13);
+	} = __webpack_require__(6);
 
 	let applyAttibutes = __webpack_require__(22);
 
@@ -2026,10 +2086,17 @@
 	let editNode = (node, newNode) => {
 	    // attributes
 	    applyAttibutes(node, newNode);
+
 	    // transfer context
 	    if (newNode.ctx) {
 	        newNode.ctx.transferCtx(node);
 	    }
+
+	    // transfer event map
+	    if (newNode.__eventMap) {
+	        node.__eventMap = newNode.__eventMap;
+	    }
+
 	    let orinChildNodes = toArray(node.childNodes);
 	    let newChildNodes = toArray(newNode.childNodes);
 
@@ -2096,7 +2163,7 @@
 
 	let {
 	    forEach
-	} = __webpack_require__(13);
+	} = __webpack_require__(6);
 
 	let applyAttibutes = (node, newNode) => {
 	    // attributes
@@ -2333,15 +2400,19 @@
 
 	let {
 	    attachDocument
-	} = __webpack_require__(11);
+	} = __webpack_require__(4);
 
 	let {
 	    isNode
-	} = __webpack_require__(6);
+	} = __webpack_require__(7);
 
 	let {
 	    flat, forEach
-	} = __webpack_require__(13);
+	} = __webpack_require__(6);
+
+	let {
+	    reduceNode
+	} = __webpack_require__(3);
 
 	/**
 	 * @param parentNode
@@ -2349,7 +2420,9 @@
 	 */
 	module.exports = (kabaneryRoots, parentNode) => {
 	    kabaneryRoots = flat(kabaneryRoots);
+
 	    forEach(kabaneryRoots, (item) => {
+	        item = reduceNode(item);
 	        if (isNode(item)) {
 	            parentNode.appendChild(item);
 	        }
@@ -2379,11 +2452,11 @@
 
 	let {
 	    isArray, isFunction, isObject
-	} = __webpack_require__(6);
+	} = __webpack_require__(7);
 
 	let {
 	    map
-	} = __webpack_require__(13);
+	} = __webpack_require__(6);
 
 	module.exports = (...args) => {
 	    let tagName = args[0],
@@ -2429,7 +2502,7 @@
 	'use strict';
 
 	let {
-	    view, n
+	    view, n, mount
 	} = __webpack_require__(1);
 
 	let {
@@ -2438,7 +2511,7 @@
 
 	let {
 	    isObject
-	} = __webpack_require__(6);
+	} = __webpack_require__(7);
 
 	let {
 	    getWindowWidth, getWindowHeight
@@ -2625,9 +2698,9 @@
 	const SELECT_ITEM_HOVER_CLASS = 'select-item-' + idgener().replace(/\./g, '-');
 
 	module.exports = (data) => {
-	    document.getElementsByTagName('head')[0].appendChild(n('style', {
+	    mount(n('style', {
 	        type: 'text/css'
-	    }, `.${SELECT_ITEM_HOVER_CLASS}:hover{background-color: #118bfb}`));
+	    }, `.${SELECT_ITEM_HOVER_CLASS}:hover{background-color: #118bfb}`), document.getElementsByTagName('head')[0]);
 
 	    return renderMap(data);
 	};
@@ -2641,7 +2714,7 @@
 
 	let {
 	    isObject, funType, or, isString, isFalsy, likeArray
-	} = __webpack_require__(6);
+	} = __webpack_require__(7);
 
 	let iterate = __webpack_require__(30);
 
@@ -2751,7 +2824,7 @@
 
 	let {
 	    isPromise, likeArray, isObject, funType, isFunction, isUndefined, or, isNumber, isFalsy, isReadableStream, mapType
-	} = __webpack_require__(6);
+	} = __webpack_require__(7);
 
 	/**
 	 * @param opts
@@ -2898,7 +2971,7 @@
 	    iterate
 	} = __webpack_require__(30);
 
-	let {isFunction} = __webpack_require__(6);
+	let {isFunction} = __webpack_require__(7);
 
 	let defauls = {
 	    eq: (v1, v2) => v1 === v2
@@ -3222,7 +3295,7 @@
 	} = __webpack_require__(36);
 	let {
 	    funType, isObject, or, isString, isFalsy
-	} = __webpack_require__(6);
+	} = __webpack_require__(7);
 
 	let defineProperty = (obj, key, opts) => {
 	    if (Object.defineProperty) {
@@ -3382,7 +3455,7 @@
 
 	let {
 	    isObject, funType, or, isString, isFalsy, likeArray
-	} = __webpack_require__(6);
+	} = __webpack_require__(7);
 
 	let iterate = __webpack_require__(37);
 
@@ -3491,7 +3564,7 @@
 
 	let {
 	    likeArray, isObject, funType, isFunction, isUndefined, or, isNumber, isFalsy, mapType
-	} = __webpack_require__(6);
+	} = __webpack_require__(7);
 
 	/**
 	 *

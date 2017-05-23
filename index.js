@@ -1,7 +1,7 @@
 'use strict';
 
 let {
-    view, n
+    view, n, mount
 } = require('kabanery');
 
 let {
@@ -197,9 +197,9 @@ let getPath = (name, parentPath) => {
 const SELECT_ITEM_HOVER_CLASS = 'select-item-' + idgener().replace(/\./g, '-');
 
 module.exports = (data) => {
-    document.getElementsByTagName('head')[0].appendChild(n('style', {
+    mount(n('style', {
         type: 'text/css'
-    }, `.${SELECT_ITEM_HOVER_CLASS}:hover{background-color: #118bfb}`));
+    }, `.${SELECT_ITEM_HOVER_CLASS}:hover{background-color: #118bfb}`), document.getElementsByTagName('head')[0]);
 
     return renderMap(data);
 };
