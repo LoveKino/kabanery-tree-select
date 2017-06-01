@@ -1,6 +1,6 @@
-{
+j
   "name": "kabanery-tree-select",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "tree select for kabanery",
   "main": "index.js",
   "scripts": {
